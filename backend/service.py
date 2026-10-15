@@ -46,7 +46,26 @@ def handle(request: object) -> dict:
                 data = {"tags": tags}
             else:
                 from backend.retrieval import search
-                data = search(papers, tags, request["payload"])
+                dense = None
+                warnings = []
+                payload = request["payload"]
+                index_path = Path(os.environ.get("RESEARCHOS_INDEX_PATH", str(path.with_suffix(".dense.json"))))
+                if payload.get("mode", "STRICT") == "BROAD" and isinstance(payload.get("query", ""), str) and payload.get("query", "").strip():
+                    if index_path.is_file():
+                        try:
+                            from backend.vector.index import DenseIndex
+                            dense = DenseIndex(index_path, papers, tags)
+                        except Exception:
+                            warnings.append("Dense index is invalid or out of date; lexical search remains available")
+                    else:
+                        warnings.append("No local dense index is installed; lexical search remains available")
+                data = search(papers, tags, payload, dense=dense)
+                data["warnings"].extend(warnings)
+                by_id = {paper["paper_id"]: paper for paper in papers}
+                for result in data["results"]:
+                    paper = by_id[result["paper_id"]]
+                    result["venue"] = paper.get("venue")
+                    result["venue_evidence"] = paper.get("venue_evidence", [])
         finally:
             connection.close()
         return {**envelope, "ok": True, "data": data}
