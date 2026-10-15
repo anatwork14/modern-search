@@ -140,3 +140,16 @@ Work **P0-01** first; optional EX-* proposals cannot supersede P0 correctness, p
 ## Parallel execution record
 
 Actual sessions and isolated branches are listed above. A/B/C launched first; D and E launched as slots became available. No shared migrations, interfaces or progress edits occurred concurrently. Lead resolves integration and owns this ledger; workers supply code/test evidence. All worker PRs target `integration/researchos-mvp`.
+
+## Drive paper transfer and SVG identity follow-up — 2026-10-15 checkpoint
+
+This is an additive Drive transfer and an independently audited icon implementation; it does not modify the application database, catalog, qualification metadata or index. The user authorized following catalog links and adding verified PDFs to the same folder while preserving existing files.
+
+| Session / branch | State at this checkpoint | Evidence and remaining gate |
+|---|---|---|
+| `/root/icon_implementation` — `feat/researchos-icon` | DONE; PR #13 merged at `3cbda695` (source change `5fd0e726`) | The SVG identity supplied the desktop icon; app build/launch and UI checks passed in that PR. The local SVG was uploaded as `researchos-icon.svg`, Drive ID `1UkjXHBdFR1rA4ymw3qc9f3Fh0xkOFAgk`, and read back at 1,214 bytes. |
+| `/root/paper_acquisition` — `feat/paper-acquisition` | IN PROGRESS; PR #14 merged at integration commit `0f8e3f4` | Validator SHA-256 `caa99d9c0173d816e224cb7c556abbc2dc251a875710dfb340862ef3f20d00d1`; independent 11/11 identity fixture, 32 acquisition tests, and 15 core data tests passed. At this checkpoint 1,088/2,478 records were parsed (897 ready, 131 unavailable at attempted endpoints, 60 failure); campaign still running. |
+| `/root/paper_upload_quality` — `chore/paper-upload-audit` | IN PROGRESS; 157 PDFs uploaded and independently reconciled | Local hashes, sizes, PDF signatures, page counts and first-page title headers passed 157/157; Drive receipts reconciled with observed names, IDs, sizes and MIME types. Successful per-file metadata readback confirmed the destination parent. Remote PDF checksums are not exposed. Acquisition CI, docs and four independent network-boundary tests are included in this follow-up branch. |
+| `/root` — `integration/researchos-mvp` | IN PROGRESS | PR #12 remains a draft to `main`; lead tracks integration and campaign completion. The final all-paper manifest awaits terminal acquisition reconciliation. |
+
+Campaign totals are not final. The read-only catalog snapshot contains 2,478 candidates, 1,580 with no direct PDF URL, and 184 JMLR masthead-prefix titles (151 without a catalog article-title tail). At the checkpoint, 35 uploaded PDFs are JMLR papers; 23 masthead-repair titles were verified against official JMLR landing pages and exact PDF links. Source qualification (SJR Q1/Q2 or CORE A/A*) remains a separate, unvalidated filter. The ZIP contained no full-text PDF set. The external uploads do not change the app's local-PDF or qualification status, and source catalog/database state remains unchanged. `unavailable` describes attempted endpoint responses, not proof a paper is globally unavailable.
