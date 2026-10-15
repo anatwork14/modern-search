@@ -4,7 +4,7 @@ Run Python suites by directory because standard-library `unittest` does not
 recursively find all nested suites from the repository root:
 
 ```sh
-python3.11 -m pip install 'jsonschema>=4.22,<5'
+python3.11 -m pip install 'jsonschema==4.26.0'
 python3.11 -m unittest discover -s tests/contracts -v
 python3.11 -m unittest discover -s tests/data -v
 python3.11 -m unittest discover -s tests/embeddings -v
@@ -43,7 +43,8 @@ not prove this native smoke gate.
 The current desktop bridge has no release-bundled Python service or database
 resources. A release build must not be described as searchable until a bundle
 layout, resource resolution, and packaged smoke test are implemented and
-executed. The model adapter also has no verified local inference result in the
-quality suite; keep `dense_status=unavailable` until an exact pinned checkpoint
-loads and passes CPU/MPS shape, normalization, prompt, and failure checks on a
-recorded host.
+executed. The local encoder and exact-cosine index have passed CPU and Apple
+MPS compatibility checks on the pinned checkpoint; this establishes loading,
+prompt, shape, and normalization compatibility, not semantic ranking quality.
+Keep benchmark judgments marked `NOT RUN` until a human-reviewed labeled query
+set is evaluated. See `docs/qa/benchmark-protocol.md` for the required protocol.

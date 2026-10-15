@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install schema validator
-        run: python -m pip install --disable-pip-version-check 'jsonschema>=4.22,<5'
+        run: python -m pip install --disable-pip-version-check 'jsonschema==4.26.0'
       - name: Validate protocol schema and quality contract tests
         run: python -m unittest discover -s tests/contracts -v
       - name: Data import tests
@@ -37,6 +37,9 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -49,6 +52,9 @@ jobs:
           npm run lint
           npm run build
       - name: Rust compile and test gate
+        env:
+          MODERN_SEARCH_PYTHON: python
+          RESEARCHOS_DB_PATH: ${{ runner.temp }}/researchos-desktop-smoke/catalog.sqlite3
         run: |
           cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
           cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml

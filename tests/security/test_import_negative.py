@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import unittest
 from unittest.mock import patch
+import tempfile
+from pathlib import Path
+import zipfile
 
 from backend.ingest import import_catalog
 from backend.ingest import workbook
@@ -61,6 +64,22 @@ class ImportSecurityTests(unittest.TestCase):
         ).fetchone()
         self.assertEqual(row[0], "unknown")
 
+    def test_metadata_reimport_preserves_human_review_state(self):
+        import_catalog(self.db, {"papers": [paper("P-REVIEWED", eligibility="unknown")]},
+                       "source-one", "revision-1")
+        self.db.execute(
+            "UPDATE papers SET eligibility_state='verified-qualified', review_state='manually-verified' "
+            "WHERE paper_id='P-REVIEWED'"
+        )
+        self.db.commit()
+        import_catalog(self.db, {"papers": [paper(
+            "P-REVIEWED", "10.1234/reviewed", eligibility="unknown",
+        )]}, "source-two", "revision-1")
+        state = self.db.execute(
+            "SELECT eligibility_state, review_state FROM papers WHERE paper_id='P-REVIEWED'"
+        ).fetchone()
+        self.assertEqual(tuple(state), ("verified-qualified", "manually-verified"))
+
     def test_alias_collision_remains_ambiguous_and_never_selects_a_tag(self):
         catalog = {
             "tags": [
@@ -96,6 +115,15 @@ class ImportSecurityTests(unittest.TestCase):
         with patch.object(workbook, "_xlsx_sheets", return_value=sheets):
             with self.assertRaisesRegex(ValueError, "unknown paper"):
                 workbook.load_workbook_catalog("synthetic-only.xlsx")
+
+    def test_workbook_xml_entities_are_rejected(self):
+        workbook_xml = b'<!DOCTYPE workbook [<!ENTITY x "expanded">]><workbook/>'
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "entity.xlsx"
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("xl/workbook.xml", workbook_xml)
+            with self.assertRaisesRegex(ValueError, "XML declarations"):
+                workbook._xlsx_sheets(path)
 
 
 if __name__ == "__main__":
