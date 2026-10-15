@@ -137,3 +137,13 @@ NEXT HANDOFF:
 ## Repository integration status at kickoff
 
 This file is an instruction handoff only. The tool writing this spec to GitHub does not execute code on a Mac, run subprocess agents, perform Drive imports, or validate native Tauri/model runtime. The status ledger intentionally remains **not started** until actual worker run, commit, test and/or PR evidence is observed.
+
+## Dispatchable GitHub tickets (not yet launched)
+
+- Worker A: https://github.com/anatwork14/modern-search/issues/2
+- Worker B: https://github.com/anatwork14/modern-search/issues/3
+- Worker C: https://github.com/anatwork14/modern-search/issues/4
+- Worker D: https://github.com/anatwork14/modern-search/issues/5
+- Worker E: https://github.com/anatwork14/modern-search/issues/6
+
+Lead should assign session/branch to each issue after launching the runtime agents. Issue creation does **not** mean any agent is running.

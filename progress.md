@@ -136,3 +136,15 @@ Planned independent tracks (all TODO until started):
 | Worker E (QA) | CI/fixtures/security; P1-05 protocol | independent test gates | scaffolding and interfaces |
 
 **Do not report tasks as IN_PROGRESS until lead observes an actual agent session or implementation branch.** Coordinator creates per-worker worktrees serially before launching workers in parallel, and maintains one integration branch based on the docs commit if PR #1 is still unmerged.
+
+### Parallel worker issue tracker (created; unassigned)
+
+| Worker | Issue | Workstream | Current execution state |
+|---|---|---|---|
+| A | [#2](https://github.com/anatwork14/modern-search/issues/2) | Data audit, SQLite/import | TODO — no agent session observed |
+| B | [#3](https://github.com/anatwork14/modern-search/issues/3) | Tauri desktop and IPC | TODO — no agent session observed |
+| C | [#4](https://github.com/anatwork14/modern-search/issues/4) | EmbeddingGemma 2 | TODO — no agent session observed |
+| D | [#5](https://github.com/anatwork14/modern-search/issues/5) | Hybrid retrieval and facets | TODO — no agent session observed |
+| E | [#6](https://github.com/anatwork14/modern-search/issues/6) | CI/security/evaluation fixtures | TODO — no agent session observed |
+
+Lead updates in-progress statuses only when a process/session or implementation PR is verified. Do not mistake GitHub issue creation for agent spawning.
