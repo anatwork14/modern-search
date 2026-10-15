@@ -1,8 +1,14 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::process::{Command, Stdio};
+use std::thread;
+use std::time::Duration;
 use tauri::Manager;
+use wait_timeout::ChildExt;
+
+const SERVICE_TIMEOUT: Duration = Duration::from_secs(30);
+const MAX_RESPONSE_BYTES: u64 = 8 * 1024 * 1024;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct RpcRequest {
@@ -59,6 +65,10 @@ fn invoke_service(command_name: &str, payload: Value) -> Result<Value, RpcError>
         command: command_name.to_string(),
         payload,
     };
+    let request_bytes = serde_json::to_vec(&request).map_err(|_| RpcError {
+        code: "INTERNAL_ERROR".into(),
+        message: "Could not encode the local search request.".into(),
+    })?;
     let python = std::env::var("MODERN_SEARCH_PYTHON").unwrap_or_else(|_| "python3".into());
     let mut child = Command::new(python)
         .arg("-m")
@@ -73,31 +83,93 @@ fn invoke_service(command_name: &str, payload: Value) -> Result<Value, RpcError>
             code: "INTERNAL_ERROR".into(),
             message: "Could not start the local search service. Check Python 3.11+ is installed.".into(),
         })?;
-    let mut stdin = child.stdin.take().ok_or_else(|| RpcError {
-        code: "INTERNAL_ERROR".into(),
-        message: "Could not open the local service request channel.".into(),
-    })?;
-    serde_json::to_writer(&mut stdin, &request).map_err(|_| RpcError {
-        code: "INTERNAL_ERROR".into(),
-        message: "Could not encode the local search request.".into(),
-    })?;
-    stdin.write_all(b"\n").map_err(|_| RpcError {
-        code: "INTERNAL_ERROR".into(),
-        message: "Could not send the local search request.".into(),
-    })?;
+    let Some(stdout) = child.stdout.take() else {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(RpcError {
+            code: "INTERNAL_ERROR".into(),
+            message: "Could not open the local service response channel.".into(),
+        });
+    };
+    let stdout_reader = thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let mut buffer = [0; 8192];
+        let mut exceeded_limit = false;
+        let mut stdout = stdout;
+        loop {
+            let count = stdout.read(&mut buffer)?;
+            if count == 0 {
+                break;
+            }
+            let remaining = MAX_RESPONSE_BYTES.saturating_sub(bytes.len() as u64) as usize;
+            let retained = count.min(remaining);
+            bytes.extend_from_slice(&buffer[..retained]);
+            exceeded_limit |= retained < count;
+        }
+        Ok::<_, std::io::Error>((bytes, exceeded_limit))
+    });
+    let Some(mut stdin) = child.stdin.take() else {
+        let _ = child.kill();
+        let _ = child.wait();
+        let _ = stdout_reader.join();
+        return Err(RpcError {
+            code: "INTERNAL_ERROR".into(),
+            message: "Could not open the local service request channel.".into(),
+        });
+    };
+    if stdin.write_all(&request_bytes).and_then(|()| stdin.write_all(b"\n")).is_err() {
+        drop(stdin);
+        let _ = child.kill();
+        let _ = child.wait();
+        let _ = stdout_reader.join();
+        return Err(RpcError {
+            code: "INTERNAL_ERROR".into(),
+            message: "Could not send the local search request.".into(),
+        });
+    }
     drop(stdin);
 
-    let output = child.wait_with_output().map_err(|_| RpcError {
+    let status = match child.wait_timeout(SERVICE_TIMEOUT) {
+        Ok(Some(status)) => status,
+        Ok(None) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_reader.join();
+            return Err(RpcError {
+                code: "INTERNAL_ERROR".into(),
+                message: "The local search service timed out after 30 seconds.".into(),
+            });
+        }
+        Err(_) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_reader.join();
+            return Err(RpcError {
+                code: "INTERNAL_ERROR".into(),
+                message: "Could not wait for the local search service.".into(),
+            });
+        }
+    };
+    let (response_bytes, response_exceeded_limit) = stdout_reader.join().map_err(|_| RpcError {
         code: "INTERNAL_ERROR".into(),
-        message: "The local search service did not finish the request.".into(),
+        message: "The local search response channel failed.".into(),
+    })?.map_err(|_| RpcError {
+        code: "INTERNAL_ERROR".into(),
+        message: "Could not read the local search response.".into(),
     })?;
-    if !output.status.success() {
+    if response_exceeded_limit {
+        return Err(RpcError {
+            code: "INTERNAL_ERROR".into(),
+            message: "The local search service response exceeded the size limit.".into(),
+        });
+    }
+    if !status.success() {
         return Err(RpcError {
             code: "INTERNAL_ERROR".into(),
             message: "The local search service exited unexpectedly.".into(),
         });
     }
-    let response: RpcResponse = serde_json::from_slice(&output.stdout).map_err(|_| RpcError {
+    let response: RpcResponse = serde_json::from_slice(&response_bytes).map_err(|_| RpcError {
         code: "INTERNAL_ERROR".into(),
         message: "The local search service returned an invalid response.".into(),
     })?;

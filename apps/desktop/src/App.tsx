@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { SearchData, SearchMode, SearchRequest, SearchResult } from "./contracts";
 import { mockSearch } from "./mock";
@@ -75,16 +75,28 @@ function App() {
   const [mode, setMode] = useState<SearchMode>("BROAD");
   const [eligibility, setEligibility] = useState("verified-qualified");
   const [query, setQuery] = useState("");
-  const [namespace, setNamespace] = useState("");
-  const [tagText, setTagText] = useState("");
-  const [operator, setOperator] = useState<"ANY" | "ALL" | "NOT">("ANY");
+  const [facets, setFacets] = useState<Array<{
+    id: string;
+    namespace: string;
+    tagText: string;
+    operator: "ANY" | "ALL" | "NOT";
+    tagReviewState: "" | "verified" | "needs-manual-review";
+  }>>([]);
   const [searchData, setSearchData] = useState<SearchData>(emptySearch);
   const [health, setHealth] = useState<{ paper_count: number; index_version: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const searchRunId = useRef(0);
 
-  const tags = tagText.split(",").map((tag) => tag.trim()).filter(Boolean);
+  const invalidateResults = useCallback(() => {
+    searchRunId.current += 1;
+    setSearchData(emptySearch);
+    setHasSearched(false);
+    setError(null);
+    setBusy(false);
+  }, []);
+
   const makeRequest = useCallback((cursor: string | null): SearchRequest => ({
     query: query.trim(),
     mode,
@@ -92,12 +104,17 @@ function App() {
     hard_filters: {
       eligibility: [eligibility],
       review_state: ["discovered", "abstract-screened", "fulltext-indexed", "manually-verified"],
-      facets: tags.length ? [{ namespace: namespace.trim(), operator, tags }] : [],
+      facets: facets.map((facet) => ({
+        namespace: facet.namespace.trim(),
+        operator: facet.operator,
+        tags: facet.tagText.split(",").map((tag) => tag.trim()).filter(Boolean),
+        ...(facet.tagReviewState ? { review_state: facet.tagReviewState } : {}),
+      })),
       exclude_paper_ids: [],
     },
     limit: 20,
     cursor,
-  }), [eligibility, mode, namespace, operator, query, tags]);
+  }), [eligibility, facets, mode, query]);
 
   const checkHealth = useCallback(async () => {
     if (!desktop) return;
@@ -113,20 +130,31 @@ function App() {
 
   const runSearch = async (event?: FormEvent, cursor: string | null = null) => {
     event?.preventDefault();
+    const incompleteFacet = facets.some((facet) =>
+      !facet.namespace.trim() || !facet.tagText.split(",").some((tag) => tag.trim()),
+    );
+    if (incompleteFacet) {
+      setError("Complete each tag facet or remove it before searching.");
+      setHasSearched(false);
+      return;
+    }
+    const runId = cursor ? searchRunId.current : ++searchRunId.current;
     setBusy(true);
     setError(null);
     setHasSearched(true);
     try {
       const request = makeRequest(cursor);
       const response = source === "mock" ? mockSearch(request) : await searchLocal(request);
+      if (searchRunId.current !== runId) return;
       setSearchData((current) => cursor
         ? { ...response, results: [...current.results, ...response.results] }
         : response);
     } catch (caught) {
+      if (searchRunId.current !== runId) return;
       setError(displayError(caught));
       if (!cursor) setSearchData(emptySearch);
     } finally {
-      setBusy(false);
+      if (searchRunId.current === runId) setBusy(false);
     }
   };
 
@@ -162,24 +190,24 @@ function App() {
           <fieldset className="source-options">
             <legend>Data source</legend>
             <label className="radio-row">
-              <input type="radio" name="source" value="local" checked={source === "local"} onChange={() => { setSource("local"); void checkHealth(); }} />
+              <input type="radio" name="source" value="local" checked={source === "local"} onChange={() => { invalidateResults(); setHealth(null); setSource("local"); void checkHealth(); }} />
               <span><strong>Local library</strong><small>Search indexed papers on this device</small></span>
             </label>
             <label className="radio-row">
-              <input type="radio" name="source" value="mock" checked={source === "mock"} onChange={() => { setSource("mock"); setError(null); }} />
+              <input type="radio" name="source" value="mock" checked={source === "mock"} onChange={() => { invalidateResults(); setHealth(null); setSource("mock"); }} />
               <span><strong>Demo mock</strong><small>Fictional examples for exploring the interface</small></span>
             </label>
           </fieldset>
 
           <label className="control-label" htmlFor="search-mode">Search mode</label>
-          <select id="search-mode" value={mode} onChange={(event) => setMode(event.target.value as SearchMode)}>
+          <select id="search-mode" value={mode} onChange={(event) => { invalidateResults(); setMode(event.target.value as SearchMode); }}>
             <option value="BROAD">Broad · lexical + semantic candidates</option>
             <option value="STRICT">Strict · exact terms and filters</option>
           </select>
           <p className="field-hint">Filters stay exact. An empty intersection stays empty.</p>
 
           <label className="control-label" htmlFor="eligibility">Publication eligibility</label>
-          <select id="eligibility" value={eligibility} onChange={(event) => setEligibility(event.target.value)}>
+          <select id="eligibility" value={eligibility} onChange={(event) => { invalidateResults(); setEligibility(event.target.value); }}>
             <option value="verified-qualified">Verified qualified · default</option>
             <option value="exploratory">Exploratory · opt in</option>
             <option value="unknown">Unknown · opt in</option>
@@ -189,17 +217,37 @@ function App() {
 
           <hr />
           <h3>Tag filter</h3>
-          <label className="control-label" htmlFor="tag-namespace">Namespace</label>
-          <input id="tag-namespace" value={namespace} onChange={(event) => setNamespace(event.target.value)} placeholder="e.g. method" />
-          <label className="control-label" htmlFor="tag-operator">Within this facet</label>
-          <select id="tag-operator" value={operator} onChange={(event) => setOperator(event.target.value as typeof operator)}>
-            <option value="ANY">ANY · match one tag</option>
-            <option value="ALL">ALL · match every tag</option>
-            <option value="NOT">NOT · exclude these tags</option>
-          </select>
-          <label className="control-label" htmlFor="tag-values">Canonical tag IDs</label>
-          <textarea id="tag-values" value={tagText} onChange={(event) => setTagText(event.target.value)} placeholder="method/flash-attention, method/gqa" rows={3} />
-          <p className="field-hint">Use comma-separated IDs from your taxonomy. Aliases are not silently converted.</p>
+          {facets.map((facet, index) => {
+            const fieldId = `tag-facet-${index + 1}`;
+            const updateFacet = (changes: Partial<typeof facet>) => {
+              invalidateResults();
+              setFacets((current) => current.map((item) => item.id === facet.id ? { ...item, ...changes } : item));
+            };
+            return (
+              <fieldset className="facet-row" key={facet.id}>
+                <legend>Tag facet {index + 1}</legend>
+                <button className="remove-facet" type="button" aria-label={`Remove tag filter ${index + 1}`} onClick={() => { invalidateResults(); setFacets((current) => current.filter((item) => item.id !== facet.id)); }}>Remove</button>
+                <label className="control-label" htmlFor={`${fieldId}-namespace`}>Namespace</label>
+                <input id={`${fieldId}-namespace`} value={facet.namespace} onChange={(event) => updateFacet({ namespace: event.target.value })} placeholder="e.g. method" />
+                <label className="control-label" htmlFor={`${fieldId}-operator`}>Within this facet</label>
+                <select id={`${fieldId}-operator`} value={facet.operator} onChange={(event) => updateFacet({ operator: event.target.value as typeof facet.operator })}>
+                  <option value="ANY">ANY · match one tag</option>
+                  <option value="ALL">ALL · match every tag</option>
+                  <option value="NOT">NOT · exclude these tags</option>
+                </select>
+                <label className="control-label" htmlFor={`${fieldId}-values`}>Canonical tag IDs</label>
+                <textarea id={`${fieldId}-values`} value={facet.tagText} onChange={(event) => updateFacet({ tagText: event.target.value })} placeholder="flash-attention, gqa" rows={2} />
+                <label className="control-label" htmlFor={`${fieldId}-review`}>Tag review state</label>
+                <select id={`${fieldId}-review`} value={facet.tagReviewState} onChange={(event) => updateFacet({ tagReviewState: event.target.value as typeof facet.tagReviewState })}>
+                  <option value="">Any review state</option>
+                  <option value="verified">Verified only</option>
+                  <option value="needs-manual-review">Needs manual review</option>
+                </select>
+              </fieldset>
+            );
+          })}
+          <button className="add-facet" type="button" onClick={() => { invalidateResults(); setFacets((current) => [...current, { id: crypto.randomUUID(), namespace: "", tagText: "", operator: "ANY", tagReviewState: "" }]); }}>+ Add tag facet</button>
+          <p className="field-hint">Use canonical tag IDs. Facets combine with AND; operators apply within each facet.</p>
         </aside>
 
         <section className="results-panel" aria-labelledby="results-title">
@@ -210,7 +258,7 @@ function App() {
                 id="research-query"
                 type="search"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => { invalidateResults(); setQuery(event.target.value); }}
                 onKeyDown={(event) => {
                   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") void runSearch();
                 }}

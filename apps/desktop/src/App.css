@@ -33,6 +33,13 @@
 .filter-panel select:focus, .filter-panel input:focus, .filter-panel textarea:focus, .query-row input:focus { border-color: #52816b; box-shadow: 0 0 0 3px #e5f0e9; }
 .field-hint { margin: 8px 0 0; color: #87938c; font-size: 10px; line-height: 1.5; }
 .filter-panel hr { height: 1px; border: 0; margin: 23px 0 19px; background: #edf0ed; }
+.facet-row { position: relative; min-width: 0; margin: 12px 0; padding: 12px 11px; border: 1px solid #e2e8e3; border-radius: 8px; }
+.facet-row legend { padding: 0 5px; color: #43594a; font-size: 11px; font-weight: 600; }
+.facet-row .control-label { margin-top: 11px; }
+.remove-facet { position: absolute; top: 9px; right: 10px; padding: 3px 5px; border: 0; background: transparent; color: #8b6861; font-size: 10px; cursor: pointer; }
+.remove-facet:hover { color: #a33d2e; text-decoration: underline; }
+.add-facet { width: 100%; margin-top: 6px; padding: 9px; border: 1px dashed #cbd8cf; border-radius: 7px; background: #fbfcfb; color: #386348; font-size: 11px; cursor: pointer; }
+.add-facet:hover { background: #f0f5f1; }
 .results-panel { min-height: 490px; overflow: hidden; }
 .search-form { padding: 23px 25px 18px; border-bottom: 1px solid #edf0ed; }
 .search-form > label { display: block; margin: 0 0 9px; color: #435249; font-size: 12px; font-weight: 600; }
