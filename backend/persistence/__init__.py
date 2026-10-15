@@ -27,6 +27,12 @@ def migrate(connection: sqlite3.Connection) -> int:
     connection.commit()
     applied = {row[0] for row in connection.execute("SELECT version FROM schema_migrations")}
     files = sorted(_MIGRATIONS.glob("[0-9][0-9][0-9][0-9]_*.sql"))
+    versions = [int(file.name[:4]) for file in files]
+    if len(versions) != len(set(versions)):
+        raise RuntimeError("duplicate migration version in application bundle")
+    latest = max(versions, default=0)
+    if applied and max(applied) > latest:
+        raise RuntimeError(f"database schema version {max(applied)} is newer than this application ({latest})")
     for file in files:
         version = int(file.name[:4])
         if version in applied:
@@ -37,7 +43,7 @@ def migrate(connection: sqlite3.Connection) -> int:
         except Exception:
             connection.rollback()
             raise
-    return max((int(file.name[:4]) for file in files), default=0)
+    return latest
 
 
 def export_tags(connection: sqlite3.Connection) -> list[dict]:
@@ -70,10 +76,12 @@ def export_papers(connection: sqlite3.Connection) -> list[dict]:
             "review_state": row["review_state"], "eligibility": row["eligibility_state"],
             "pdf_state": row["pdf_state"], "tags": tags,
             "venue": row["venue_name"],
-            "venue_evidence": [dict(r) for r in connection.execute(
+            "venue_evidence": [{**dict(r), "source_asserted": True} for r in connection.execute(
                 "SELECT venue_type,core_rank,sjr_quartile,ranking_system,ranking_year,ranking_category,ranking_source_url,publication_evidence_url FROM venue_evidence WHERE paper_id=? ORDER BY source_record_id", (row["paper_id"],))],
             "identifiers": [r[0] for r in connection.execute(
-                "SELECT normalized_value FROM paper_identifiers WHERE paper_id=? ORDER BY kind,normalized_value", (row["paper_id"],))],
+                "SELECT normalized_value FROM paper_identifiers WHERE paper_id=? ORDER BY normalized_value", (row["paper_id"],))],
+            "identifier_records": [dict(r) for r in connection.execute(
+                "SELECT kind,normalized_value AS value FROM paper_identifiers WHERE paper_id=? ORDER BY kind,normalized_value", (row["paper_id"],))],
         })
     return papers
 

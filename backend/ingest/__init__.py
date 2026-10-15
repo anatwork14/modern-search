@@ -128,7 +128,10 @@ def import_catalog(connection: sqlite3.Connection, catalog: dict, source_id: str
             (source_id, source_revision),
         )]
         if old_edge_ids:
-            connection.executemany("DELETE FROM paper_tags WHERE source_record_id=?", ((record_id,) for record_id in old_edge_ids))
+            connection.executemany(
+                "DELETE FROM paper_tags WHERE source_record_id=? AND review_state NOT IN ('verified','rejected')",
+                ((record_id,) for record_id in old_edge_ids),
+            )
         if tag_by_id:
             placeholders = ",".join("?" for _ in tag_by_id)
             connection.execute(
@@ -175,7 +178,7 @@ def import_catalog(connection: sqlite3.Connection, catalog: dict, source_id: str
                 authors = [item.strip() for item in authors.split(";") if item.strip()]
             connection.execute(
                 "INSERT INTO papers(paper_id,title,abstract,authors_json,publication_year,venue_name,doi,source_url,eligibility_state,review_state,pdf_state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) "
-                "ON CONFLICT(paper_id) DO UPDATE SET title=excluded.title,abstract=excluded.abstract,authors_json=excluded.authors_json,publication_year=excluded.publication_year,venue_name=excluded.venue_name,doi=excluded.doi,source_url=excluded.source_url,eligibility_state=excluded.eligibility_state,review_state=excluded.review_state,pdf_state=CASE WHEN papers.pdf_state='VERIFIED_LOCAL' THEN papers.pdf_state ELSE excluded.pdf_state END,updated_at=excluded.updated_at",
+                "ON CONFLICT(paper_id) DO UPDATE SET title=excluded.title,abstract=excluded.abstract,authors_json=excluded.authors_json,publication_year=excluded.publication_year,venue_name=excluded.venue_name,doi=excluded.doi,source_url=excluded.source_url,eligibility_state=CASE WHEN papers.eligibility_state='unknown' THEN excluded.eligibility_state ELSE papers.eligibility_state END,review_state=CASE WHEN CASE papers.review_state WHEN 'discovered' THEN 0 WHEN 'abstract-screened' THEN 1 WHEN 'fulltext-indexed' THEN 2 WHEN 'manually-verified' THEN 3 WHEN 'experiment-reproduced' THEN 4 ELSE 0 END > CASE excluded.review_state WHEN 'discovered' THEN 0 WHEN 'abstract-screened' THEN 1 WHEN 'fulltext-indexed' THEN 2 WHEN 'manually-verified' THEN 3 WHEN 'experiment-reproduced' THEN 4 ELSE 0 END THEN papers.review_state ELSE excluded.review_state END,pdf_state=CASE WHEN papers.pdf_state='VERIFIED_LOCAL' THEN papers.pdf_state ELSE excluded.pdf_state END,updated_at=excluded.updated_at",
                 (paper_id, str(paper["title"]).strip(), paper.get("abstract") or None, _json(authors), paper.get("year"), paper.get("venue"), doi, paper.get("source_url"), eligibility, review, pdf_state, now, now),
             )
             inserted["papers"] += not bool(exists)
@@ -183,6 +186,10 @@ def import_catalog(connection: sqlite3.Connection, catalog: dict, source_id: str
             src = _source_record(connection, source_id, source_revision, "paper", paper_id, paper_id, paper, now)
             connection.execute(
                 "DELETE FROM paper_identifiers WHERE paper_id=? AND kind='doi' AND source_record_id IN (SELECT source_record_id FROM source_records WHERE source_id=?)",
+                (paper_id, source_id),
+            )
+            connection.execute(
+                "DELETE FROM paper_identifiers WHERE paper_id=? AND kind='arxiv' AND source_record_id IN (SELECT source_record_id FROM source_records WHERE source_id=?)",
                 (paper_id, source_id),
             )
             if doi:

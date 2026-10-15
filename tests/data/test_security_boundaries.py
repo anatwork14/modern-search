@@ -43,3 +43,14 @@ class ImportBoundsTests(unittest.TestCase):
         backup.backup(db)
         self.assertEqual(db.execute('SELECT title FROM papers').fetchone()[0], 'Source')
         backup.close(); db.close()
+
+    def test_newer_database_schema_is_refused_without_mutation(self):
+        db = connect(':memory:')
+        db.execute("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)")
+        db.execute("INSERT INTO schema_migrations VALUES(99, 'future')")
+        db.commit()
+        with self.assertRaisesRegex(RuntimeError, "newer than this application"):
+            migrate(db)
+        self.assertEqual(db.execute("SELECT version FROM schema_migrations").fetchone()[0], 99)
+        self.assertIsNone(db.execute("SELECT name FROM sqlite_master WHERE name='papers'").fetchone())
+        db.close()

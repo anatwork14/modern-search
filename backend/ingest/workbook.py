@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import posixpath
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -47,7 +48,11 @@ def _xlsx_sheets(path: str | Path) -> dict[str, list[list[str]]]:
             return ET.fromstring(data)
         workbook = read_xml("xl/workbook.xml")
         relationships = read_xml("xl/_rels/workbook.xml.rels")
-        targets = {rel.attrib["Id"]: rel.attrib["Target"] for rel in relationships.findall("pkg:Relationship", _NS)}
+        rels = relationships.findall("pkg:Relationship", _NS)
+        rel_ids = [rel.attrib.get("Id", "") for rel in rels]
+        if not all(rel_ids) or len(rel_ids) != len(set(rel_ids)):
+            raise ValueError("Ambiguous XLSX relationship IDs")
+        targets = {rel.attrib["Id"]: rel.attrib["Target"] for rel in rels}
         shared: list[str] = []
         if "xl/sharedStrings.xml" in archive.namelist():
             root = read_xml("xl/sharedStrings.xml")
@@ -55,14 +60,18 @@ def _xlsx_sheets(path: str | Path) -> dict[str, list[list[str]]]:
         sheets: dict[str, list[list[str]]] = {}
         for sheet in workbook.findall("main:sheets/main:sheet", _NS):
             name = sheet.attrib["name"]
+            if not name or name in sheets:
+                raise ValueError("Duplicate or empty XLSX sheet name")
             target = targets[sheet.attrib[f"{{{_NS['rel']}}}id"]]
+            if (not target or "\\" in target or ":" in target or "?" in target or "#" in target
+                    or target.startswith("//")):
+                raise ValueError("Unsafe XLSX relationship path")
             if target.startswith("/"):
-                member = target.lstrip("/")
-            elif target.startswith("xl/"):
-                member = target
+                member = posixpath.normpath(target.lstrip("/"))
             else:
-                member = f"xl/{target}"
-            if ".." in PurePosixPath(member).parts or "\\" in member:
+                member = posixpath.normpath(posixpath.join("xl", target))
+            if (".." in PurePosixPath(member).parts or not member.startswith("xl/worksheets/")
+                    or not member.endswith(".xml") or member not in names):
                 raise ValueError("Unsafe XLSX relationship path")
             root = read_xml(member)
             rows: list[list[str]] = []
@@ -97,7 +106,8 @@ def _records(rows: list[list[str]]) -> list[dict[str, str]]:
         return []
     header_row = next((row for row in rows if any(value.strip() for value in row)), [])
     headers = [value.strip() for value in header_row]
-    if len([h for h in headers if h]) != len(set(h for h in headers if h)):
+    normalized = [h.casefold() for h in headers if h]
+    if len(normalized) != len(set(normalized)):
         raise ValueError("Duplicate XLSX column headers")
     result = []
     for row in rows[rows.index(header_row) + 1:]:
@@ -132,7 +142,7 @@ def load_workbook_catalog(path: str | Path) -> dict:
     for row in tag_rows:
         tag_id = row.get("Canonical tag", "")
         if not tag_id:
-            continue
+            raise ValueError("TAG_DICTIONARY contains a row without a canonical tag ID")
         tags.append({
             "tag_id": tag_id,
             "namespace": row.get("Namespace", ""),
@@ -145,8 +155,8 @@ def load_workbook_catalog(path: str | Path) -> dict:
     papers = []
     for row in paper_rows:
         paper_id = row.get("Paper_ID", "")
-        if not paper_id:
-            continue
+        if not paper_id or not row.get("Title", "").strip():
+            raise ValueError("PAPER_LIBRARY contains a row without Paper_ID or Title")
         year = row.get("Year", "")
         try:
             year_value = int(float(year)) if year else None
@@ -162,6 +172,7 @@ def load_workbook_catalog(path: str | Path) -> dict:
             "year": year_value,
             "venue": row.get("Venue / Journal", "") or None,
             "doi": row.get("DOI", "") or None,
+            "arxiv_id": row.get("arXiv ID", "") or None,
             "source_url": row.get("Paper URL", "") or None,
             "pdf_url": link or None,
             "pdf_state": "REMOTE_ONLY" if link else "UNAVAILABLE",
