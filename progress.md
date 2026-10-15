@@ -1,6 +1,6 @@
 # progress.md — ResearchOS execution ledger
 
-**Last reviewed:** 2026-10-15 (Asia/Ho_Chi_Minh). **Status:** requirements documented, implementation not started.  
+**Last reviewed:** 2026-10-15 (Asia/Ho_Chi_Minh). **Status:** implementation IN_PROGRESS; no MVP acceptance gate claimed.  
 **Repository at audit:** only README.md and LICENSE on main (commit bd4bc6d53a827bada6c5b5b3e418ad14e157004d).  
 **This specification branch:** docs/researchos-spec-and-progress.  
 **Status authority:** validated code/test results; update this file with each implementation PR (see AGENTS.md).
@@ -23,11 +23,16 @@
 
 ## In progress
 
-No implementation tasks have been started or assigned as of this review. Agents must register work below before changes.
+Implementation started from unmerged PR #1 specification commit e85962c. Runtime capacity: lead plus three active workers; D/E are queued, not running. Five isolated worktrees exist. Integration protocol: docs/contracts/MVP_V1.md. Git HTTPS pushes currently time out; integration branch created through GitHub API, local contract commit publication pending.
 
 | ID | Owner / agent | Branch | Started (UTC) | Next check | Status |
 |---|---|---|---|---|---|
-| — | Unassigned | — | — | Begin P0-01 | — |
+| P0-01/03/04/05 | A / /root/worker_a_data | feat/p0-data, issue #2, PR pending | 2026-10-15T03:19Z | Drive audit, import/migration tests | IN_PROGRESS |
+| P0-02/11 | B / /root/worker_b_desktop | feat/p0-desktop, issue #3, PR pending | 2026-10-15T03:19Z | Native startup and typed IPC | IN_PROGRESS |
+| P0-08/09 | C / /root/worker_c_embeddings | feat/p0-embedding, issue #4, PR pending | 2026-10-15T03:19Z | Official model compatibility and adapter tests | IN_PROGRESS |
+| P0-06/07/10 | D / session not created | feat/p0-retrieval, issue #5, PR pending | — | Start when runtime slot opens | TODO |
+| CI/security | E / session not created | feat/p0-quality, issue #6, PR pending | — | Start when runtime slot opens | TODO |
+| Integration | Lead / /root | integration/researchos-mvp | 2026-10-15T03:19Z | Contract schema and stdio service; tests NOT RUN, dependencies A/D pending | IN_PROGRESS |
 
 ## Prioritized backlog
 
