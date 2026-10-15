@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ResearchOS</title>
+  <desc id="desc">An ivory research page and a turquoise search lens with an evidence point, on a midnight blue rounded square.</desc>
+  <defs>
+    <linearGradient id="surface" x1="64" y1="32" x2="448" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#183D53"/><stop offset="1" stop-color="#0B2033"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#surface)"/>
+  <path d="M152 82h116l70 70v170a30 30 0 0 1-30 30H152a30 30 0 0 1-30-30V112a30 30 0 0 1 30-30Z" fill="#F7F4E9"/>
+  <path d="M268 82v48a22 22 0 0 0 22 22h48" fill="#B9CECF"/>
+  <path d="M164 176h92M164 214h66M164 252h38" fill="none" stroke="#446477" stroke-width="16" stroke-linecap="round"/>
+  <path d="m359 359 57 57" stroke="#66E0CA" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="296" cy="296" r="86" fill="#102C41" stroke="#66E0CA" stroke-width="28"/>
+  <path d="M257 309h77M257 278h40" fill="none" stroke="#F7F4E9" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="331" cy="271" r="10" fill="#66E0CA"/>
+</svg>

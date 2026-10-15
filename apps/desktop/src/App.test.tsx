@@ -6,6 +6,13 @@ import App from "./App";
 afterEach(cleanup);
 
 describe("ResearchOS desktop search shell", () => {
+  it("uses the canonical ResearchOS mark in the header", () => {
+    render(<App />);
+
+    expect(screen.getByRole("link", { name: "ResearchOS home" }).querySelector("img"))
+      .toHaveAttribute("src", "/researchos-icon.svg");
+  });
+
   it("labels the demo source and only shows fictional examples after a search", async () => {
     const user = userEvent.setup();
     render(<App />);
