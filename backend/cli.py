@@ -19,7 +19,8 @@ def main() -> None:
     from backend.persistence import connect, migrate
     from backend.ingest import import_catalog
 
-    raw = args.catalog.read_bytes()
+    with args.catalog.open("rb") as stream:
+        raw = stream.read(32 * 1024 * 1024 + 1)
     if len(raw) > 32 * 1024 * 1024:
         parser.error("Catalog exceeds supported size")
     if args.catalog.suffix.lower() == ".xlsx":

@@ -7,32 +7,42 @@
 
 ## Snapshot
 
-| Workstream | Status | Evidence / caveat |
+Implementation is based on specification commit `e85962c`, because PR #1 remains unmerged. `main` has not been merged or released. Five actual GPT-6 Luna High sessions ran in separate worktrees; runtime capacity permitted three active workers alongside the lead, so later workers started when slots became available. Only validated changes enter `integration/researchos-mvp`.
+
+| Workstream | Status | Implemented evidence / remaining gate |
 |---|---|---|
-| Problem framing and cross-domain queries | DONE (research/design) | docs/PRODUCT_SPEC.md and docs/RETRIEVAL_SPEC.md |
-| 1,616-tag taxonomy authoring | DONE (external source) | linked Drive workbook; import and QA NOT done |
-| Paper candidate discovery | DONE (external inventory only) | Drive reports 2,478 candidate records and 3,197 candidate paper–tag links; most not validated |
-| Primary venue quality policy | DONE (external policy) | Drive QUALITY_POLICY.md; machine enforcement NOT done |
-| App architecture and schema draft | DONE (design) | docs/ARCHITECTURE.md; spec/schema.sql; not migrated |
-| EmbeddingGemma 2 model selection | DONE (baseline choice) | docs/REFERENCES_AND_DECISIONS.md; runtime compatibility NOT tested |
-| Repo application scaffold | TODO | No Tauri, Python, SQLite DB, tests or executable app at audit |
-| Actual PDF imports, vector index, retrieval, reranker | TODO | External notes state zero PDFs downloaded |
-| Mac packaging, signed app, release | TODO | No build or verification |
+| A — source audit, import, SQLite/provenance | DONE (workbook slice) | PR #10, `d2832c5`; 15 data tests and independent security regressions PASS; imported 1,616 tags, 2,478 papers, 3,197 assertions, 7,291 source records; idempotent reimport, integrity/FKs PASS |
+| B — Tauri/React desktop and stdio bridge | IN_PROGRESS | PR #9, `4a9d002`; frontend 3 tests/build/lint and Rust smoke PASS; debug app launches; native qualified default 0 and unknown/attention lexical 102 verified; final native hybrid gate pending |
+| C — embedding adapter and versioned title/abstract index | DONE (compatibility/runtime slice) | Merged PR #7, `04bcdaa`; 10 tests PASS; pinned offline EmbeddingGemma 2 works on MPS and CPU; actual 2,478 title vectors built; final catalog index rebuild IN_PROGRESS |
+| D — lexical, strict filters, AST, RRF | DONE (MVP component) | Merged PR #8, `5eb789d`; 17 retrieval tests plus independent negative regressions PASS; strict zero remains zero |
+| E — CI, security and benchmark infrastructure | IN_PROGRESS | PR #11; contracts 3, security 18 tests PASS against candidate; hosted CI and final integrated review pending |
+| Lead — stdio service, import CLI and integration | IN_PROGRESS | Real offline service: attention lexical 102; BROAD dense ready with semantic routes; impossible ALL intersection 0; native/CI/final integration gates remain |
+| Qualification and source completeness | BLOCKED | All 2,478 candidates unknown eligibility/discovered, no source abstracts, 898 remote PDF links, 0 verified local PDFs; supplementary ZIP contents unavailable |
+| Signed, portable macOS release | TODO | Debug app remains checkout/Python dependent; release resources/signing/notarization unqualified |
+| Relevance gold set / comparative ablation | TODO | Compatibility and mechanical tests are not relevance judgments; no nDCG/Recall quality claim |
 
-**Never reclassify external workbook numbers as installed or verified local indexes.**
+## Owners, branches and next actions
 
-## In progress
+| Session / issue | Branch / PR | Execution state | Next action |
+|---|---|---|---|
+| `/root/worker_a_data`, #2 | `feat/p0-data`, #10 merged | Completed | Preserve review decisions on future revisions; ZIP contents remain blocked |
+| `/root/worker_b_desktop`, #3 | `feat/p0-desktop`, #9 | Active | Final native hybrid and strict-filter verification with final index |
+| `/root/worker_c_embeddings`, #4 | `feat/p0-embedding`, #7 merged | Completed | Relevance benchmark deferred; model jobs serialized |
+| `/root/worker_d_retrieval`, #5 | `feat/p0-retrieval`, #8 merged | Completed | Support final integration regressions if needed |
+| `/root/worker_e_quality`, #6 | `feat/p0-quality`, #11 | Active | Independent review, final suite and hosted CI |
+| `/root` | `integration/researchos-mvp` | Active | Integrate only approved heads, document reproducible setup and exact results |
 
-Implementation started from unmerged PR #1 specification commit e85962c. Runtime capacity: lead plus three active workers; all five workers have actual sessions; C/A completed their first deliveries, B/D/E are active. Five isolated worktrees exist. Integration protocol: docs/contracts/MVP_V1.md. Git HTTPS/SSH push transports are blocked; exact Git objects are published via GitHub Git Database API with SHA equality checks. Integration branch remote verified at 54e6ef7.
+Git push transport fails on this host. Exact unsigned Git objects are published through the GitHub Git Database API with SHA equality checks and non-forced reference updates. This does not relax review gates.
 
-| ID | Owner / agent | Branch | Started (UTC) | Next check | Status |
-|---|---|---|---|---|---|
-| P0-01/03/04/05 | A / /root/worker_a_data (initial session completed) | feat/p0-data, issue #2, PR #10 | 2026-10-15T03:19Z | Actual import/reimport 1616 tags,2478 papers,3197 assertions; data7+stdio2 PASS; E review pending | IN_PROGRESS |
-| P0-02/11 | B / /root/worker_b_desktop | feat/p0-desktop, issue #3, PR #9 | 2026-10-15T03:19Z | Native startup and typed IPC | IN_PROGRESS |
-| P0-08/09 | C / /root/worker_c_embeddings (initial session completed) | feat/p0-embedding, issue #4, commit 5849d81, PR #7 | 2026-10-15T03:19Z | Adapter tests PASS 7/7; real load FAIL config_kwargs nesting; corrective probe IN_PROGRESS; index TODO | IN_PROGRESS |
-| P0-06/07/10 | D / /root/worker_d_retrieval | feat/p0-retrieval, issue #5, PR #8 | 2026-10-15T03:27Z | 12 retrieval tests PASS; E reproduced 7 failures across 3 review findings, worker fixing | IN_PROGRESS |
-| CI/security | E / /root/worker_e_quality | feat/p0-quality, issue #6, PR pending | 2026-10-15T03:32Z | Independent regression tests and CI; A/B review | IN_PROGRESS |
-| Integration | Lead / /root | integration/researchos-mvp | 2026-10-15T03:19Z | Contract schema and stdio service; malformed-input test PASS 1/1, empty-DB integration tests PASS 2/2 in candidate QA; real lexical102 matches for explicit unknown eligibility; no validated worker merge yet | IN_PROGRESS |
+### Executed acceptance evidence (2026-10-15)
+
+- Python 3.11: `python -m unittest discover -s tests/{contracts,data,embeddings,retrieval,security,integration} -v` executed separately: 3/15/10/17/18/2 PASS in candidate integration (65 total).
+- Desktop: `npm test` (3 PASS), `npm run lint`, `npm run build`; `cargo test --locked` (1 real Python stdio smoke PASS), `cargo check --locked` PASS. Disposable empty DB and explicit Python executable used for Rust smoke.
+- Import: fresh final private DB contains the counts above; same-revision import adds 0 tags/papers/assertions, SQLite `integrity_check` is `ok`, foreign-key violations 0. Private catalog/DB/index excluded from Git.
+- Embeddings: official pinned revision `914f7f89142e33e77833254d9c9b90c3cef7303b`, 768 dimensions and unit normalization. MPS warm query median 0.030455 s / peak RSS 1,088,438,272 B; CPU 0.042150 s / 1,252,376,576 B (3-sample smoke, not production p95). Reports in `docs/benchmarks/`.
+- Actual service with socket connections blocked and offline cache flags: explicit unknown eligibility `attention` STRICT returns 102; BROAD semantic routes/dense ready; impossible field ALL intersection returns 0. No abstracts/pages fabricated.
+- Native debug app: actual catalog health 2,478; qualified-only empty state 0; explicit unknown attention returns 102. Final native semantic/strict-filter evidence pending.
+- Hosted Actions: NOT YET VERIFIED. Signed distribution: NOT RUN. Relevance gold-set evaluation: NOT RUN. ZIP content audit: BLOCKED.
 
 ## Prioritized backlog
 
@@ -42,12 +52,12 @@ Order is dependency-aware. Priority P0 = unblock MVP; P1 = improve correctness; 
 
 - [ ] **P0-01 Drive catalog audit & snapshot.** Read workbook and archive metadata, record actual counts, sheets, duplicate IDs, missing fields, PDF states, rank-evidence coverage and tag QA distribution. Deliver audit report and sanitized fixtures. **Gate:** deterministic counts, no invented downloads or eligibility. Depend: none.
 - [ ] **P0-02 Project scaffold.** Bootstrap Tauri 2 + React/TS and Python worker with reproducible macOS instructions, pinned deps, lightweight smoke test, lint/typecheck/CI and .gitignore. **Gate:** empty app starts and health IPC works on a target Mac. Depend: agreed interfaces; may parallel P0-01.
-- [ ] **P0-03 SQLite schema & migrations.** Convert spec/schema.sql into versioned migrations; add foreign keys, uniqueness, integrity checks, FTS, transaction-safe import and backup tests. **Gate:** fresh and upgraded databases migrate cleanly. Depend: P0-01.
-- [ ] **P0-04 Workbook taxonomy importer.** Parse 1,616 canonical tags and aliases; preserve namespace, group, active state and stable IDs. **Gate:** repeat import idempotent; invalid aliases/duplicate tags reported, not silently dropped. Depend: P0-01, P0-03.
-- [ ] **P0-05 Paper import, provenance & dedupe.** Preserve original Paper_ID, source rows, DOI/arXiv/title identity, venue ranking year/source and candidate-versus-verified semantics. **Gate:** repeat import creates no duplicate paper IDs or paper-tag edges; can export reconciliation report. Depend: P0-03/04.
-- [ ] **P0-06 Lexical search baseline.** SQLite FTS5 or LanceDB FTS on title, abstract, tags, indexed sections; literal phrases and named method searches. **Gate:** fixture queries return expected papers deterministically and work offline. Depend: P0-05.
-- [ ] **P0-07 Strict multi-facet filter engine.** ANY/ALL per facet, AND across facets, explicit NOT, venue eligibility and review evidence status. **Gate:** exhaustive truth-table tests incl. zero strict matches; never silently widen. Depend: P0-05.
-- [ ] **P0-08 EmbeddingGemma 2 compatibility spike.** Test text-only 270M on target Mac (Apple Silicon MPS; CPU fallback), query vs titled document prompts, 768d dimensions, normalization, model caching and zero-network inference after install. **Gate:** measured correct embeddings + regression test; do not invent performance. Depend: P0-02.
+- [x] **P0-03 SQLite schema & migrations.** Convert spec/schema.sql into versioned migrations; add foreign keys, uniqueness, integrity checks, FTS, transaction-safe import and backup tests. **Gate:** fresh and upgraded databases migrate cleanly. Depend: P0-01.
+- [x] **P0-04 Workbook taxonomy importer.** Parse 1,616 canonical tags and aliases; preserve namespace, group, active state and stable IDs. **Gate:** repeat import idempotent; invalid aliases/duplicate tags reported, not silently dropped. Depend: P0-01, P0-03.
+- [x] **P0-05 Paper import, provenance & dedupe.** Preserve original Paper_ID, source rows, DOI/arXiv/title identity, venue ranking year/source and candidate-versus-verified semantics. **Gate:** repeat import creates no duplicate paper IDs or paper-tag edges; can export reconciliation report. Depend: P0-03/04.
+- [x] **P0-06 Lexical search baseline.** SQLite FTS5 or LanceDB FTS on title, abstract, tags, indexed sections; literal phrases and named method searches. **Gate:** fixture queries return expected papers deterministically and work offline. Depend: P0-05.
+- [x] **P0-07 Strict multi-facet filter engine.** ANY/ALL per facet, AND across facets, explicit NOT, venue eligibility and review evidence status. **Gate:** exhaustive truth-table tests incl. zero strict matches; never silently widen. Depend: P0-05.
+- [x] **P0-08 EmbeddingGemma 2 compatibility spike.** Test text-only 270M on target Mac (Apple Silicon MPS; CPU fallback), query vs titled document prompts, 768d dimensions, normalization, model caching and zero-network inference after install. **Gate:** measured correct embeddings + regression test; do not invent performance. Depend: P0-02.
 - [ ] **P0-09 Versioned dense chunk index.** Section/title/abstract units, index manifest, reproducible reindex, drift detection and safe atomic swap. **Gate:** model/prompt/dimension mismatch blocks mixed-index search. Depend: P0-05/08.
 - [ ] **P0-10 Hybrid search MVP.** BM25+dense candidates, RRF fusion, paper-level dedupe, search modes strict/broad, pagination and match-route explanations. **Gate:** offline sample queries work end to end, no page/evidence fabrication. Depend: P0-06/07/09.
 - [ ] **P0-11 Desktop result experience.** Search box, filter panes with counts, research groupings, paper list, source links, annotation statuses, empty state and saved query. **Gate:** end-to-end query from desktop; keyboard navigation; no misleading verified badge. Depend: P0-02/10.
@@ -85,9 +95,9 @@ Order is dependency-aware. Priority P0 = unblock MVP; P1 = improve correctness; 
 8. Offline search works without an open cloud service after model/data preparation. Opt-in network routes are clearly marked.
 9. No injected PDF text can change agent/runtime behavior or access credentials.
 
-## Next action for the first implementation agent
+## Next integration action
 
-**Start with P0-01**. Verify live Drive workbook/archive metadata and inspect source contents; document missingness and candidate-vs-verified distribution. Produce deterministic import fixture/report, then implement P0-03/P0-04. A separate agent can open P0-02 in parallel after agreeing on IPC contracts. Do not begin speculative graph/agent frameworks before the first vertical slice passes.
+Complete native hybrid verification against the final imported catalog, merge approved desktop/quality PRs, run the full local and hosted CI gates, then record the exact integration SHA. Keep qualification, ZIP content, full-text evidence, relevance benchmarking and portable release gates separate from the working development search slice.
 
 ## Changelog
 
@@ -126,30 +136,6 @@ The following deliverables are **DONE as research/specification only** on this d
 
 Work **P0-01** first; optional EX-* proposals cannot supersede P0 correctness, provenance and offline search. Agent owners can separately research interfaces but should not implement competing services, generic chat frameworks, or unreviewed extension loaders. When an extension actually ships, update this ledger with its code path, tests, measurements, commit and PR.
 
-## Parallel execution kickoff (instructions committed; worker sessions not verified)
+## Parallel execution record
 
-**Status:** kickoff playbook PREPARED, worker processes NOT STARTED by this documentation change. See [START_HERE.md](START_HERE.md). Recommended 1 lead + 5 worker agents; coordinator must launch them in the actual Claude/Codex/Hermes or other supported runtime and record observed branches/PRs/tests. Never change the IN_PROGRESS table on the basis of this plan alone.
-
-Planned independent tracks (all TODO until started):
-
-| Track | Tasks | Owned interface | Release dependency |
-|---|---|---|---|
-| Worker A (data) | P0-01, P0-03/04/05 | SQLite migrations, Drive audit/import | First source-of-truth contract |
-| Worker B (desktop) | P0-02, later P0-11 | Tauri/React and IPC shell | Worker D search service |
-| Worker C (ML) | P0-08, then P0-09 | embedding adapter and index manifest | Official checkpoint + Mac compatibility |
-| Worker D (retrieval) | P0-06/07, then P0-10 | FTS5, AST/facets, RRF | Worker A schema; Worker C dense API |
-| Worker E (QA) | CI/fixtures/security; P1-05 protocol | independent test gates | scaffolding and interfaces |
-
-**Do not report tasks as IN_PROGRESS until lead observes an actual agent session or implementation branch.** Coordinator creates per-worker worktrees serially before launching workers in parallel, and maintains one integration branch based on the docs commit if PR #1 is still unmerged.
-
-### Parallel worker issue tracker (created; unassigned)
-
-| Worker | Issue | Workstream | Current execution state |
-|---|---|---|---|
-| A | [#2](https://github.com/anatwork14/modern-search/issues/2) | Data audit, SQLite/import | TODO — no agent session observed |
-| B | [#3](https://github.com/anatwork14/modern-search/issues/3) | Tauri desktop and IPC | TODO — no agent session observed |
-| C | [#4](https://github.com/anatwork14/modern-search/issues/4) | EmbeddingGemma 2 | TODO — no agent session observed |
-| D | [#5](https://github.com/anatwork14/modern-search/issues/5) | Hybrid retrieval and facets | TODO — no agent session observed |
-| E | [#6](https://github.com/anatwork14/modern-search/issues/6) | CI/security/evaluation fixtures | TODO — no agent session observed |
-
-Lead updates in-progress statuses only when a process/session or implementation PR is verified. Do not mistake GitHub issue creation for agent spawning.
+Actual sessions and isolated branches are listed above. A/B/C launched first; D and E launched as slots became available. No shared migrations, interfaces or progress edits occurred concurrently. Lead resolves integration and owns this ledger; workers supply code/test evidence. All worker PRs target `integration/researchos-mvp`.

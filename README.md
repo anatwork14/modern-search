@@ -1,76 +1,69 @@
-# modern-search / ResearchOS
+# ResearchOS / modern-search
 
-Local-first research search and knowledge discovery for AI, ML, and deep learning papers.
+A local macOS research catalog with a Tauri 2 desktop interface, SQLite provenance, offline lexical search, strict taxonomy filters, and optional EmbeddingGemma 2 hybrid retrieval.
 
-> **Status (2026-10-15): SPECIFICATION ONLY.** No Tauri app, embedding model, PDF parser, local index, ingestion job, benchmark, or packaged binary exists in this repository yet. See [progress.md](progress.md).
+**Development MVP, 2026-10-15.** The canonical source was imported locally: 1,616 tags, 2,478 papers and 3,197 paper/tag assertions. These are discovery candidates: every imported paper remains `unknown` eligibility, and no PDF has been verified locally. The default qualified-only search therefore returns zero until a separate review establishes qualification. Select unknown/exploratory explicitly to browse the imported candidates. See [progress.md](progress.md) for executed gates and remaining work.
 
-## Product vision
+## Run on macOS
 
-A macOS-first desktop research workbench for discovering, validating and organizing scholarly work. The system must combine **EmbeddingGemma 2 semantic search, exact BM25 search, faceted multi-tag filtering, passage-grounded evidence, and cross-domain concept connections**. It must make it easy to research both "attention mechanisms for LLM inference optimization" and "attention in personalized federated learning", without conflating unrelated meanings of attention.
+Requires Python 3.11+, Node 22, Rust stable and Apple's Command Line Tools. Run commands from the repository root. Source documents, SQLite files and model weights are private local inputs and are not included in Git.
 
-### Non-negotiable behavior
+```sh
+python3.11 -m venv .venv
+. .venv/bin/activate
+python -m pip install jsonschema==4.26.0
+cd apps/desktop
+npm ci
+cd ../..
+```
 
-- Local paper search works offline once models and indexes are installed. Online discovery is explicit opt-in.
-- Search uses lexical + dense + metadata retrieval; embeddings alone are insufficient.
-- Tags are many-to-many and follow the existing 1,616-tag controlled vocabulary; uncertain tags stay marked as candidates.
-- Strict filters never silently relax. Result metadata distinguishes discovered, abstract-screened, fulltext-indexed, verified, and reproduced work.
-- Relevance explanations point to provenance and supporting text/pages whenever available. Never fabricate an unavailable PDF, DOI, venue rank, page, experimental outcome or citation.
-- Preserve user privacy, source records, stable Paper_IDs and incremental indexing state.
+Import a local copy of the canonical XLSX workbook, or a catalog JSON snapshot conforming to the importer fixtures:
 
-## Current inputs (NOT ingested into an app yet)
+```sh
+python -m backend.cli /absolute/path/catalog.xlsx \
+  --source-id 'drive:1aFPn80GxpTaapzMnIc6dJlE1esn0W9Lk'
+```
 
-- [AI/ML Drive folder](https://drive.google.com/drive/folders/1tUj_kTXYSAuBCXlnGNK-HpUQBfn5r7R1)
-- [Canonical taxonomy workbook](https://docs.google.com/spreadsheets/d/1aFPn80GxpTaapzMnIc6dJlE1esn0W9Lk/edit)
-- [Existing research notes](https://drive.google.com/file/d/1OGBNkcObBPjrEzoO1TJBsuU9gkA-rERa/view)
-- [Venue-quality policy](https://drive.google.com/file/d/19TraX52uXqq7NhX7b1InkafB60yMtPAj/view)
-- [Catalog archive](https://drive.google.com/file/d/12o8VtbYbGgIUmpyRr29v4nYCBBwLpIPg/view)
+The default database is `~/Library/Application Support/ResearchOS/catalog.sqlite3`. `--source-revision` defaults to the input SHA-256; repeat imports preserve identity, row provenance and stronger local review decisions. An unavailable supplementary archive does not block workbook ingestion. Imports never download PDFs or promote source assertions into verified evidence.
 
-The Drive workbook reports 1,616 canonical tags, 2,478 discovery candidates and 3,197 candidate paper/tag links. Only 35 records are described as screened in the research notes, and none as fully read. The previous collection confirmed zero downloaded PDFs. These are **external source inventory numbers**, not app capability metrics or validated annotations.
+Launch the native development app from the same activated shell:
 
-## Suggested architecture (subject to benchmark gates)
+```sh
+export MODERN_SEARCH_PYTHON="$(command -v python)"
+# Optional host-only overrides: RESEARCHOS_DB_PATH and RESEARCHOS_INDEX_PATH.
+cd apps/desktop
+npm run tauri dev
+```
 
-| Layer | Initial proposal |
-|---|---|
-| Desktop | Tauri 2 + React/TypeScript |
-| Local service | Python worker/sidecar, narrow authenticated IPC |
-| Metadata | SQLite with migrations, constraints and provenance |
-| Search | SQLite FTS5 or LanceDB FTS + LanceDB dense vectors; hybrid RRF |
-| Embeddings | google/embeddinggemma-2; text-only 270M configuration, 768d index |
-| PDF ingestion | PyMuPDF baseline, Docling optional rich layout fallback |
-| External adapters | Drive read-only, Zotero Local API, OpenAlex, Crossref, Semantic Scholar |
-| Quality | Relevance gold set, labeled test queries, reproducible BM25/dense/hybrid ablation |
+The Rust bridge starts an anchored Python stdio service for each request. There is no listening backend port. Browser-only `npm run dev` uses an explicitly labeled fictional demo; use Tauri for the real local catalog. Search supports literal terms, phrases, DOI/arXiv identity, and ANY/ALL/NOT tags with AND across facets. STRICT uses lexical retrieval; BROAD fuses lexical and available dense ranks using RRF. Missing or stale dense indexes preserve lexical search with a visible warning. Metadata remains source asserted; abstracts, PDF pages and evidence are shown as unavailable when absent.
 
-## Documentation map
+## Optional semantic search
 
-- [progress.md](progress.md): verified done/in-progress/backlog, acceptance gates and handoff.
-- [AGENTS.md](AGENTS.md): binding implementation protocol for AI coding agents.
-- [Product requirements](docs/PRODUCT_SPEC.md): user stories, workflows, scope and nonfunctional requirements.
-- [Architecture](docs/ARCHITECTURE.md): modules, lifecycle, offline behavior and deployment.
-- [Data model and taxonomy](docs/DATA_AND_TAXONOMY.md): normalized relations and provenance; machine-readable draft in [spec/schema.sql](spec/schema.sql).
-- [Search/retrieval specification](docs/RETRIEVAL_SPEC.md): query planner, operators, ranking, grouping and bridge queries.
-- [Ingestion and synchronization](docs/INGESTION_AND_SYNC.md): source identity, PDFs, Drive, Zotero and discovery.
-- [UI/UX specification](docs/UI_UX_SPEC.md): screens, facets, paper inspector and visualizations.
-- [Evaluation and tests](docs/EVALUATION_AND_TESTS.md): gold queries, acceptance criteria, metrics and model comparisons.
-- [Security and privacy](docs/SECURITY_PRIVACY.md): trust boundaries, local data and secret handling.
-- [Decisions and references](docs/REFERENCES_AND_DECISIONS.md): source URLs, assumptions and open ADRs.
-- [Sample queries](spec/search_queries.json): initial executable-style acceptance fixtures.
+Model installation requires a deliberate network download. Runtime encoding is cache-only. Install the tested optional runtime into the active Python environment and cache the complete pinned checkpoint:
 
-## First contribution
+```sh
+python -m pip install -r backend/embeddings/requirements.txt
+python -c "from huggingface_hub import snapshot_download; snapshot_download('google/embeddinggemma-2', revision='914f7f89142e33e77833254d9c9b90c3cef7303b')"
+python -m backend.cli /absolute/path/catalog.xlsx \
+  --source-id 'drive:1aFPn80GxpTaapzMnIc6dJlE1esn0W9Lk' --build-index
+```
 
-Do NOT claim this README provides a working desktop app. Follow Stage 0 in [progress.md](progress.md) to implement the smallest import and search vertical slice. For every task: tests + evidence + progress update + PR review.
+The index is atomically written beside the database with suffix `.dense.json`. Rebuild after corpus changes; manifest/corpus mismatch blocks dense use. Run only one model build/probe at a time on a memory-constrained Mac. This source has no abstracts: its current embeddings represent titles only. MPS and CPU compatibility were measured on Apple Silicon with 16 GiB RAM; these smoke measurements do not establish retrieval relevance. See [embedding measurements](docs/benchmarks/embeddinggemma2-compatibility.md).
 
-## Platform expansion (research/design, not implemented)
+## Verify
 
-The first product remains a trusted **academic research engine**. Optional extensions may transform the same local-first core into a broader **Research Intelligence Platform**: evidence/claim comparison, paper-to-code-to-experiment lineage, mechanism bridge hypotheses, citation evolution, read-only agent tools, and domain-specific document search. These do **not** block the first working search vertical slice.
+```sh
+. .venv/bin/activate
+./scripts/check.sh
+```
 
-- [Expansion opportunity and trade-off study](docs/PLATFORM_EXPANSION_RESEARCH.md)
-- [High-value research workflows](docs/RESEARCH_WORKFLOWS.md)
-- [Extensible ports/adapters, plugins and MCP read-only contract](docs/EXTENSIBILITY_AND_PLUGIN_API.md)
-- [Applications and source-scope profiles](docs/APPLICATION_PROFILES.md)
-- [Draft extension manifest validation schema](spec/extension_manifest.schema.json)
+The script runs Python contracts/data/embedding/retrieval/security/stdio tests, frontend tests/lint/build, and a Rust bridge test against a disposable empty database. Unit tests do not download model weights. GitHub Actions repeats these checks on macOS.
 
-**Decision:** modular monolith and first-party adapters now; third-party sandbox/plugins, cloud/team collaboration and automated execution deferred until measured demand. Hypotheses/semantic associations are never represented as empirically verified findings.
+A debug app can be built with `npm run tauri build -- --debug --bundles app` from `apps/desktop`. It remains a checkout-dependent development artifact. A self-contained signed/notarized release, PDF extraction, relevance gold-set comparison and advanced research extensions remain unqualified or deferred.
 
-## Begin implementation with parallel agents
+## Project references
 
-**Start here:** [START_HERE.md](START_HERE.md) — lead/orchestrator kickoff with five independent workers (data, desktop, embeddings, retrieval, quality), separate Git worktrees, interface contracts, acceptance tests and strict progress tracking. This file instructs agent spawning; it is not evidence of active worker processes or a built app. The lead must verify that the spec PR is still unmerged before choosing the implementation branch.
+- [Agent instructions](AGENTS.md), [parallel setup](START_HERE.md), [integration contracts](docs/contracts/MVP_V1.md)
+- [Product](docs/PRODUCT_SPEC.md), [architecture](docs/ARCHITECTURE.md), [data](docs/DATA_AND_TAXONOMY.md), [retrieval](docs/RETRIEVAL_SPEC.md)
+- [Privacy](docs/SECURITY_PRIVACY.md), [evaluation](docs/EVALUATION_AND_TESTS.md), [source audit](docs/audits/)
+- [Canonical workbook](https://docs.google.com/spreadsheets/d/1aFPn80GxpTaapzMnIc6dJlE1esn0W9Lk/edit), [source folder](https://drive.google.com/drive/folders/1tUj_kTXYSAuBCXlnGNK-HpUQBfn5r7R1)
