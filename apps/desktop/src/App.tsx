@@ -134,6 +134,8 @@ function App() {
     ? "Demo mode · fictional sample records"
     : health
       ? `Local service · ${health.paper_count.toLocaleString()} papers · ${health.index_version}`
+      : error
+        ? "Local service unavailable"
       : "Local service · checking connection";
 
   return (
