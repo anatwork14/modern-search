@@ -2,6 +2,12 @@
 
 Tauri 2 + React/TypeScript desktop shell for the local-first ResearchOS search service.
 
+The shared header mark and browser favicon use `public/researchos-icon.svg`. The Tauri bundle icons are generated from that same vector source so platform assets stay aligned:
+
+```sh
+npm run tauri -- icon public/researchos-icon.svg --output src-tauri/icons
+```
+
 ## Development
 
 Use Node 22 and Python 3.11 or newer. From this directory:

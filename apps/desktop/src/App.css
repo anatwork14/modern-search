@@ -2,7 +2,7 @@
 .app-shell { min-height: 100vh; background: #f5f6f4; color: #1c2722; }
 .topbar { height: 76px; padding: 0 clamp(22px, 5vw, 78px); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e7e2; background: rgba(255,255,255,.94); }
 .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
-.brand-mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: #183c30; color: white; font: 700 19px Georgia, serif; }
+.brand-mark { display: block; width: 38px; height: 38px; border-radius: 11px; }
 .brand strong, .brand small { display: block; }
 .brand strong { font: 600 15px Georgia, serif; letter-spacing: .01em; }
 .brand small { margin-top: 3px; color: #7b8781; font-size: 11px; }

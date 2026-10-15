@@ -193,7 +193,7 @@ function App() {
     <main className="app-shell">
       <header className="topbar">
         <a className="brand" href="#main" aria-label="ResearchOS home">
-          <span className="brand-mark" aria-hidden="true">R</span>
+          <img className="brand-mark" src="/researchos-icon.svg" alt="" aria-hidden="true" />
           <span><strong>ResearchOS</strong><small>Local research library</small></span>
         </a>
         <div className={`connection ${source === "mock" ? "demo-connection" : "local-connection"}`} role="status">
