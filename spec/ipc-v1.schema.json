@@ -50,6 +50,135 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "search"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/search"
+          }
+        }
+      }
     }
-  ]
+  ],
+  "$defs": {
+    "facet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namespace",
+        "operator",
+        "tags"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operator": {
+          "enum": [
+            "ANY",
+            "ALL",
+            "NOT"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "review_state": {
+          "enum": [
+            "verified",
+            "needs-manual-review"
+          ]
+        }
+      }
+    },
+    "search": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "type": "string",
+          "maxLength": 10000
+        },
+        "mode": {
+          "enum": [
+            "STRICT",
+            "BROAD"
+          ]
+        },
+        "scope": {
+          "const": "LOCAL_ONLY"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hard_filters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "eligibility": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "unknown",
+                  "exploratory",
+                  "verified-qualified",
+                  "verified-not-qualified"
+                ]
+              }
+            },
+            "review_state": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "discovered",
+                  "abstract-screened",
+                  "fulltext-indexed",
+                  "manually-verified",
+                  "experiment-reproduced"
+                ]
+              }
+            },
+            "exclude_paper_ids": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "facets": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/facet"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
