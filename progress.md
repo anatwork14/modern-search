@@ -1,6 +1,6 @@
 # progress.md — ResearchOS execution ledger
 
-**Last reviewed:** 2026-10-15 (Asia/Ho_Chi_Minh). **Status:** implementation IN_PROGRESS; no MVP acceptance gate claimed.  
+**Last reviewed:** 2026-10-15 (Asia/Ho_Chi_Minh). **Status:** development search MVP DONE; portable release and relevance qualification remain TODO.
 **Repository at audit:** only README.md and LICENSE on main (commit bd4bc6d53a827bada6c5b5b3e418ad14e157004d).  
 **This specification branch:** docs/researchos-spec-and-progress.  
 **Status authority:** validated code/test results; update this file with each implementation PR (see AGENTS.md).
@@ -12,11 +12,11 @@ Implementation is based on specification commit `e85962c`, because PR #1 remains
 | Workstream | Status | Implemented evidence / remaining gate |
 |---|---|---|
 | A — source audit, import, SQLite/provenance | DONE (workbook slice) | PR #10, `d2832c5`; 15 data tests and independent security regressions PASS; imported 1,616 tags, 2,478 papers, 3,197 assertions, 7,291 source records; idempotent reimport, integrity/FKs PASS |
-| B — Tauri/React desktop and stdio bridge | IN_PROGRESS | PR #9, `4a9d002`; frontend 3 tests/build/lint and Rust smoke PASS; debug app launches; native qualified default 0 and unknown/attention lexical 102 verified; final native hybrid gate pending |
-| C — embedding adapter and versioned title/abstract index | DONE (compatibility/runtime slice) | Merged PR #7, `04bcdaa`; 10 tests PASS; pinned offline EmbeddingGemma 2 works on MPS and CPU; actual 2,478 title vectors built; final catalog index rebuild IN_PROGRESS |
+| B — Tauri/React desktop and stdio bridge | DONE (development app) | Merged PR #9, `c83d3db`; frontend 3 tests/build/lint and Rust smoke PASS; native qualified 0, unknown/attention lexical 102, BROAD dense ready and strict ALL 0 verified |
+| C — embedding adapter and versioned title/abstract index | DONE (compatibility/runtime slice) | Merged PR #7, `04bcdaa`; 10 tests PASS; pinned offline EmbeddingGemma 2 works on MPS and CPU; actual 2,478 title vectors built; final catalog index rebuild PASS (2,478 vectors, 40,410,426 bytes) |
 | D — lexical, strict filters, AST, RRF | DONE (MVP component) | Merged PR #8, `5eb789d`; 17 retrieval tests plus independent negative regressions PASS; strict zero remains zero |
-| E — CI, security and benchmark infrastructure | IN_PROGRESS | PR #11; contracts 3, security 18 tests PASS against candidate; hosted CI and final integrated review pending |
-| Lead — stdio service, import CLI and integration | IN_PROGRESS | Real offline service: attention lexical 102; BROAD dense ready with semantic routes; impossible ALL intersection 0; native/CI/final integration gates remain |
+| E — CI, security and benchmark infrastructure | DONE | Merged PR #11, `80edc3d`; contracts 3/security 18 PASS; hosted Python and desktop jobs PASS; independent A/B/C/D review approved |
+| Lead — stdio service, import CLI and integration | DONE (development slice) | Real offline service and native app verified; reproducible setup and scripts/check.sh; all five reviewed worker PRs merged into integration |
 | Qualification and source completeness | BLOCKED | All 2,478 candidates unknown eligibility/discovered, no source abstracts, 898 remote PDF links, 0 verified local PDFs; supplementary ZIP contents unavailable |
 | Signed, portable macOS release | TODO | Debug app remains checkout/Python dependent; release resources/signing/notarization unqualified |
 | Relevance gold set / comparative ablation | TODO | Compatibility and mechanical tests are not relevance judgments; no nDCG/Recall quality claim |
@@ -26,11 +26,11 @@ Implementation is based on specification commit `e85962c`, because PR #1 remains
 | Session / issue | Branch / PR | Execution state | Next action |
 |---|---|---|---|
 | `/root/worker_a_data`, #2 | `feat/p0-data`, #10 merged | Completed | Preserve review decisions on future revisions; ZIP contents remain blocked |
-| `/root/worker_b_desktop`, #3 | `feat/p0-desktop`, #9 | Active | Final native hybrid and strict-filter verification with final index |
+| `/root/worker_b_desktop`, #3 | `feat/p0-desktop`, #9 merged | Completed | Portable resource packaging remains TODO |
 | `/root/worker_c_embeddings`, #4 | `feat/p0-embedding`, #7 merged | Completed | Relevance benchmark deferred; model jobs serialized |
 | `/root/worker_d_retrieval`, #5 | `feat/p0-retrieval`, #8 merged | Completed | Support final integration regressions if needed |
-| `/root/worker_e_quality`, #6 | `feat/p0-quality`, #11 | Active | Independent review, final suite and hosted CI |
-| `/root` | `integration/researchos-mvp` | Active | Integrate only approved heads, document reproducible setup and exact results |
+| `/root/worker_e_quality`, #6 | `feat/p0-quality`, #11 merged | Completed | Judged relevance evaluation remains TODO |
+| `/root` | `integration/researchos-mvp` | Completed development slice | Review MVP PR; release resources/qualification remain separate gates |
 
 Git push transport fails on this host. Exact unsigned Git objects are published through the GitHub Git Database API with SHA equality checks and non-forced reference updates. This does not relax review gates.
 
@@ -41,8 +41,9 @@ Git push transport fails on this host. Exact unsigned Git objects are published 
 - Import: fresh final private DB contains the counts above; same-revision import adds 0 tags/papers/assertions, SQLite `integrity_check` is `ok`, foreign-key violations 0. Private catalog/DB/index excluded from Git.
 - Embeddings: official pinned revision `914f7f89142e33e77833254d9c9b90c3cef7303b`, 768 dimensions and unit normalization. MPS warm query median 0.030455 s / peak RSS 1,088,438,272 B; CPU 0.042150 s / 1,252,376,576 B (3-sample smoke, not production p95). Reports in `docs/benchmarks/`.
 - Actual service with socket connections blocked and offline cache flags: explicit unknown eligibility `attention` STRICT returns 102; BROAD semantic routes/dense ready; impossible field ALL intersection returns 0. No abstracts/pages fabricated.
-- Native debug app: actual catalog health 2,478; qualified-only empty state 0; explicit unknown attention returns 102. Final native semantic/strict-filter evidence pending.
-- Hosted Actions: NOT YET VERIFIED. Signed distribution: NOT RUN. Relevance gold-set evaluation: NOT RUN. ZIP content audit: BLOCKED.
+- Native debug app: actual catalog health 2,478; qualified-only empty state 0; explicit unknown attention returns 102. Final native BROAD dense-ready and strict impossible ALL 0 PASS. Lead independently observed native default 0 and explicit unknown BROAD completion with dense ready.
+- Hosted Actions: PASS on quality head `80edc3d`, [run 38690936686](https://github.com/anatwork14/modern-search/actions/runs/38690936686): Python suites and desktop frontend/Rust gates. Integration commit `93a49ee` includes all reviewed workers; later ledger-only commits do not alter runtime. Signed distribution: NOT RUN. Relevance gold-set evaluation: NOT RUN. ZIP content audit: BLOCKED.
+- Final private dense index corpus revision `cafe81c40b5662d48a902294d00a442eccba730d999f93b7a8b85866b3b36b94`, file SHA-256 `ede335592f80217636c2872b2f5ff2bf4415ff18c6feaebedc340c1f83805123`; actual source abstracts absent, so current vectors are title-only.
 
 ## Prioritized backlog
 
@@ -51,16 +52,16 @@ Order is dependency-aware. Priority P0 = unblock MVP; P1 = improve correctness; 
 ### Stage 0 — trusted data foundations (P0)
 
 - [ ] **P0-01 Drive catalog audit & snapshot.** Read workbook and archive metadata, record actual counts, sheets, duplicate IDs, missing fields, PDF states, rank-evidence coverage and tag QA distribution. Deliver audit report and sanitized fixtures. **Gate:** deterministic counts, no invented downloads or eligibility. Depend: none.
-- [ ] **P0-02 Project scaffold.** Bootstrap Tauri 2 + React/TS and Python worker with reproducible macOS instructions, pinned deps, lightweight smoke test, lint/typecheck/CI and .gitignore. **Gate:** empty app starts and health IPC works on a target Mac. Depend: agreed interfaces; may parallel P0-01.
+- [x] **P0-02 Project scaffold.** Bootstrap Tauri 2 + React/TS and Python worker with reproducible macOS instructions, pinned deps, lightweight smoke test, lint/typecheck/CI and .gitignore. **Gate:** empty app starts and health IPC works on a target Mac. Depend: agreed interfaces; may parallel P0-01.
 - [x] **P0-03 SQLite schema & migrations.** Convert spec/schema.sql into versioned migrations; add foreign keys, uniqueness, integrity checks, FTS, transaction-safe import and backup tests. **Gate:** fresh and upgraded databases migrate cleanly. Depend: P0-01.
 - [x] **P0-04 Workbook taxonomy importer.** Parse 1,616 canonical tags and aliases; preserve namespace, group, active state and stable IDs. **Gate:** repeat import idempotent; invalid aliases/duplicate tags reported, not silently dropped. Depend: P0-01, P0-03.
 - [x] **P0-05 Paper import, provenance & dedupe.** Preserve original Paper_ID, source rows, DOI/arXiv/title identity, venue ranking year/source and candidate-versus-verified semantics. **Gate:** repeat import creates no duplicate paper IDs or paper-tag edges; can export reconciliation report. Depend: P0-03/04.
 - [x] **P0-06 Lexical search baseline.** SQLite FTS5 or LanceDB FTS on title, abstract, tags, indexed sections; literal phrases and named method searches. **Gate:** fixture queries return expected papers deterministically and work offline. Depend: P0-05.
 - [x] **P0-07 Strict multi-facet filter engine.** ANY/ALL per facet, AND across facets, explicit NOT, venue eligibility and review evidence status. **Gate:** exhaustive truth-table tests incl. zero strict matches; never silently widen. Depend: P0-05.
 - [x] **P0-08 EmbeddingGemma 2 compatibility spike.** Test text-only 270M on target Mac (Apple Silicon MPS; CPU fallback), query vs titled document prompts, 768d dimensions, normalization, model caching and zero-network inference after install. **Gate:** measured correct embeddings + regression test; do not invent performance. Depend: P0-02.
-- [ ] **P0-09 Versioned dense chunk index.** Section/title/abstract units, index manifest, reproducible reindex, drift detection and safe atomic swap. **Gate:** model/prompt/dimension mismatch blocks mixed-index search. Depend: P0-05/08.
-- [ ] **P0-10 Hybrid search MVP.** BM25+dense candidates, RRF fusion, paper-level dedupe, search modes strict/broad, pagination and match-route explanations. **Gate:** offline sample queries work end to end, no page/evidence fabrication. Depend: P0-06/07/09.
-- [ ] **P0-11 Desktop result experience.** Search box, filter panes with counts, research groupings, paper list, source links, annotation statuses, empty state and saved query. **Gate:** end-to-end query from desktop; keyboard navigation; no misleading verified badge. Depend: P0-02/10.
+- [x] **P0-09 Versioned dense chunk index — DONE for available title/source-abstract units.** Section/title/abstract units, index manifest, reproducible reindex, drift detection and safe atomic swap. **Gate:** model/prompt/dimension mismatch blocks mixed-index search. Depend: P0-05/08.
+- [x] **P0-10 Hybrid search MVP.** BM25+dense candidates, RRF fusion, paper-level dedupe, search modes strict/broad, pagination and match-route explanations. **Gate:** offline sample queries work end to end, no page/evidence fabrication. Depend: P0-06/07/09.
+- [ ] **P0-11 Desktop result experience — working MVP slice DONE; saved queries/groupings/count facets TODO.** Search box, filter panes with counts, research groupings, paper list, source links, annotation statuses, empty state and saved query. **Gate:** end-to-end query from desktop; keyboard navigation; no misleading verified badge. Depend: P0-02/10.
 
 ### Stage 1 — source-grounded full-text research (P1)
 
@@ -97,7 +98,7 @@ Order is dependency-aware. Priority P0 = unblock MVP; P1 = improve correctness; 
 
 ## Next integration action
 
-Complete native hybrid verification against the final imported catalog, merge approved desktop/quality PRs, run the full local and hosted CI gates, then record the exact integration SHA. Keep qualification, ZIP content, full-text evidence, relevance benchmarking and portable release gates separate from the working development search slice.
+Review the development MVP pull request. Source qualification, archive content audit, saved queries/groupings, full-text evidence, judged relevance benchmarking, and self-contained signed release packaging remain separate work. Do not treat broad candidate counts or source-reported venue ranks as quality certification.
 
 ## Changelog
 
