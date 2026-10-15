@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import xml.etree.ElementTree as ET
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 _NS = {
     "main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
@@ -19,18 +19,38 @@ def _column_index(cell_ref: str) -> int:
     index = 0
     for letter in letters:
         index = index * 26 + ord(letter) - 64
+    if index > 16384:
+        raise ValueError("XLSX column exceeds supported limit")
     return index - 1
 
 
 def _xlsx_sheets(path: str | Path) -> dict[str, list[list[str]]]:
     """Return workbook sheet rows, resolving shared and inline strings."""
+    if Path(path).stat().st_size > 32 * 1024 * 1024:
+        raise ValueError("XLSX archive exceeds size limit")
     with zipfile.ZipFile(path) as archive:
-        workbook = ET.fromstring(archive.read("xl/workbook.xml"))
-        relationships = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
+        members = archive.infolist()
+        if len(members) > 1000 or sum(m.file_size for m in members) > 64 * 1024 * 1024:
+            raise ValueError("XLSX expanded archive exceeds resource limits")
+        names = set()
+        for info in members:
+            name = info.filename
+            if name in names or name.startswith("/") or "\\" in name or ".." in PurePosixPath(name).parts:
+                raise ValueError("Unsafe or duplicate XLSX member path")
+            names.add(name)
+            if info.flag_bits & 1 or info.file_size > 16 * 1024 * 1024 or info.file_size / max(info.compress_size, 1) > 200:
+                raise ValueError("XLSX member exceeds resource limits")
+        def read_xml(member):
+            data = archive.read(member)
+            if b"<!DOCTYPE" in data.upper() or b"<!ENTITY" in data.upper():
+                raise ValueError("XLSX XML declarations are forbidden")
+            return ET.fromstring(data)
+        workbook = read_xml("xl/workbook.xml")
+        relationships = read_xml("xl/_rels/workbook.xml.rels")
         targets = {rel.attrib["Id"]: rel.attrib["Target"] for rel in relationships.findall("pkg:Relationship", _NS)}
         shared: list[str] = []
         if "xl/sharedStrings.xml" in archive.namelist():
-            root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
+            root = read_xml("xl/sharedStrings.xml")
             shared = ["".join(node.text or "" for node in item.findall(".//main:t", _NS)) for item in root.findall("main:si", _NS)]
         sheets: dict[str, list[list[str]]] = {}
         for sheet in workbook.findall("main:sheets/main:sheet", _NS):
@@ -42,7 +62,9 @@ def _xlsx_sheets(path: str | Path) -> dict[str, list[list[str]]]:
                 member = target
             else:
                 member = f"xl/{target}"
-            root = ET.fromstring(archive.read(member))
+            if ".." in PurePosixPath(member).parts or "\\" in member:
+                raise ValueError("Unsafe XLSX relationship path")
+            root = read_xml(member)
             rows: list[list[str]] = []
             for row_node in root.findall("main:sheetData/main:row", _NS):
                 cells: dict[int, str] = {}
@@ -75,6 +97,8 @@ def _records(rows: list[list[str]]) -> list[dict[str, str]]:
         return []
     header_row = next((row for row in rows if any(value.strip() for value in row)), [])
     headers = [value.strip() for value in header_row]
+    if len([h for h in headers if h]) != len(set(h for h in headers if h)):
+        raise ValueError("Duplicate XLSX column headers")
     result = []
     for row in rows[rows.index(header_row) + 1:]:
         if not any(value.strip() for value in row):
@@ -94,6 +118,13 @@ def load_workbook_catalog(path: str | Path) -> dict:
     table_names = {"TAG_DICTIONARY", "PAPER_LIBRARY", "PAPER_TAGS"}
     if not table_names.issubset(sheets):
         raise ValueError(f"workbook lacks required sheets: {', '.join(sorted(table_names - sheets.keys()))}")
+    required = {"TAG_DICTIONARY": {"Canonical tag", "Namespace", "English label"},
+                "PAPER_LIBRARY": {"Paper_ID", "Title"},
+                "PAPER_TAGS": {"Paper_ID", "Canonical tag"}}
+    for name, fields in required.items():
+        header = next((row for row in sheets[name] if any(v.strip() for v in row)), [])
+        if not fields.issubset({v.strip() for v in header}):
+            raise ValueError(f"Missing required XLSX headers in {name}")
     tag_rows = _records(sheets["TAG_DICTIONARY"])
     paper_rows = _records(sheets["PAPER_LIBRARY"])
     edge_rows = _records(sheets["PAPER_TAGS"])
@@ -152,8 +183,10 @@ def load_workbook_catalog(path: str | Path) -> dict:
     paper_tags = []
     for row in edge_rows:
         paper_id, tag_id = row.get("Paper_ID", ""), row.get("Canonical tag", "")
-        if paper_id not in paper_ids or tag_id not in tag_ids:
-            continue
+        if paper_id not in paper_ids:
+            raise ValueError(f"paper_tag references unknown paper {paper_id!r}")
+        if tag_id not in tag_ids:
+            raise ValueError(f"paper_tag references unknown tag {tag_id!r}")
         qa = row.get("Manual QA status", "").casefold()
         review_state = qa if qa in {"needs-manual-review", "verified", "rejected"} else "needs-manual-review"
         paper_tags.append({

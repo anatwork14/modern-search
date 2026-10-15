@@ -28,7 +28,20 @@ def _doi(value: Any) -> str | None:
     normalized = str(value).strip()
     normalized = re.sub(r"^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)", "", normalized, flags=re.I)
     normalized = normalized.strip().casefold()
-    return normalized or None
+    if not re.fullmatch(r"10\.\d{4,9}/\S+", normalized):
+        return None
+    return normalized
+
+
+def _arxiv(value: Any) -> str | None:
+    if not value or not str(value).strip():
+        return None
+    normalized = str(value).strip()
+    normalized = re.sub(r"^https?://(?:www\.)?arxiv\.org/(?:abs|pdf)/", "", normalized, flags=re.I)
+    normalized = re.sub(r"\.pdf$", "", normalized, flags=re.I).strip().casefold()
+    if not re.fullmatch(r"(?:\d{4}\.\d{4,5}|[a-z-]+/\d{7})(?:v\d+)?", normalized):
+        return None
+    return normalized
 
 
 def _source_record(connection: sqlite3.Connection, source_id: str, revision: str, kind: str, record_id: str, paper_id: str | None, payload: dict, now: str) -> str:
@@ -97,6 +110,17 @@ def import_catalog(connection: sqlite3.Connection, catalog: dict, source_id: str
     updated = {"papers": 0, "tags": 0}
     connection.execute("BEGIN IMMEDIATE")
     try:
+        # Check persisted ownership under the write lock before any row changes.
+        for paper_id, paper in paper_by_id.items():
+            doi = _doi(paper.get("doi"))
+            if doi:
+                owner = connection.execute(
+                    "SELECT paper_id FROM paper_identifiers WHERE kind='doi' AND normalized_value=?",
+                    (doi,),
+                ).fetchone()
+                if owner and owner["paper_id"] != paper_id:
+                    raise ValueError(f"DOI collision with existing paper ID {owner['paper_id']!r}: {doi}")
+
         # Retire assertions and canonical tags omitted from a newer snapshot of
         # this source while leaving immutable source_records available for audit.
         old_edge_ids = [row[0] for row in connection.execute(
@@ -136,10 +160,12 @@ def import_catalog(connection: sqlite3.Connection, catalog: dict, source_id: str
             exists = connection.execute("SELECT 1 FROM papers WHERE paper_id=?", (paper_id,)).fetchone()
             doi = _doi(paper.get("doi"))
             review = paper.get("review_state", "discovered")
-            if review not in _PAPER_REVIEW:
+            if review not in {"discovered", "abstract-screened"}:
                 review = "discovered"
             eligibility = paper.get("eligibility", paper.get("eligibility_state", "unknown"))
-            if eligibility not in {"unknown", "exploratory", "verified-qualified", "verified-not-qualified"}:
+            # The catalog importer records source assertions; qualification is a
+            # separately reviewed decision and cannot be self-promoted by input.
+            if eligibility not in {"unknown", "exploratory"}:
                 eligibility = "unknown"
             # Catalog rows can identify remote links, but only the local PDF
             # verification pipeline may promote bytes to VERIFIED_LOCAL.
@@ -161,6 +187,16 @@ def import_catalog(connection: sqlite3.Connection, catalog: dict, source_id: str
             )
             if doi:
                 connection.execute("INSERT INTO paper_identifiers(paper_id,kind,normalized_value,source_record_id) VALUES(?,?,?,?) ON CONFLICT(kind,normalized_value) DO UPDATE SET source_record_id=excluded.source_record_id", (paper_id, "doi", doi, src))
+            arxiv_id = _arxiv(paper.get("arxiv_id"))
+            if arxiv_id:
+                existing = connection.execute("SELECT paper_id FROM paper_identifiers WHERE kind='arxiv' AND normalized_value=?", (arxiv_id,)).fetchone()
+                if existing and existing["paper_id"] != paper_id:
+                    raise ValueError("arXiv collision with existing paper ID")
+                connection.execute(
+                    "INSERT INTO paper_identifiers(paper_id,kind,normalized_value,source_record_id) VALUES(?,?,?,?) "
+                    "ON CONFLICT(kind,normalized_value) DO UPDATE SET source_record_id=excluded.source_record_id",
+                    (paper_id, "arxiv", arxiv_id, src),
+                )
             if paper.get("venue_evidence"):
                 ev = paper["venue_evidence"]
                 connection.execute("INSERT OR IGNORE INTO venue_evidence(paper_id,venue_type,core_rank,sjr_quartile,ranking_system,ranking_year,ranking_category,ranking_source_url,publication_evidence_url,source_record_id) VALUES(?,?,?,?,?,?,?,?,?,?)", (paper_id, ev.get("venue_type"), ev.get("core_rank"), ev.get("sjr_quartile"), ev.get("ranking_system"), ev.get("ranking_year"), ev.get("ranking_category"), ev.get("ranking_source_url"), ev.get("publication_evidence_url"), src))
