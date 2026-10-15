@@ -57,10 +57,16 @@ class SearchTests(unittest.TestCase):
         self.assertIn("EXACT_TERM", result["results"][0]["match_routes"])
         self.assertEqual(result["results"][0]["source_url"], "https://example.org/paper")
 
+    def test_doi_with_balanced_parentheses_is_exact_not_token_expanded(self):
+        exact = paper("DOI-1", doi="10.5555/example(4)", title="Example four")
+        token_overlap = paper("DOI-2", doi="10.5555/example(5)", title="Example four")
+        result = self.run_query({"query": "doi:10.5555/example(4)"}, papers=[exact, token_overlap])
+        self.assertEqual(self.ids(result), ["DOI-1"])
+
     def test_arxiv_identifier_is_direct_lookup(self):
         record = paper("ARXIV-1", title="Paper without DOI", eligibility="exploratory")
         record["source_url"] = "https://arxiv.org/abs/2401.01234v2"
-        result = self.run_query({"query": "arXiv:2401.01234v2",
+        result = self.run_query({"query": "https://arxiv.org/abs/2401.01234v1",
                                  "hard_filters": {"eligibility": ["exploratory"]}}, papers=[record])
         self.assertEqual(self.ids(result), ["ARXIV-1"])
         self.assertIn("EXACT_TERM", result["results"][0]["match_routes"])
@@ -100,6 +106,17 @@ class SearchTests(unittest.TestCase):
         ]}})
         self.assertEqual(self.ids(across), ["P2"])
 
+    def test_rejected_assertions_are_inactive_for_any_all_and_not(self):
+        rejected = paper("REJECTED", tags=[("field/federated-learning", "rejected")])
+        papers = self.papers + [rejected]
+        def filtered(operator):
+            return self.run_query({"query": "", "hard_filters": {"facets": [
+                {"namespace": "field", "operator": operator, "tags": ["field/federated-learning"]}
+            ]}}, papers=papers)
+        self.assertNotIn("REJECTED", self.ids(filtered("ANY")))
+        self.assertNotIn("REJECTED", self.ids(filtered("ALL")))
+        self.assertIn("REJECTED", self.ids(filtered("NOT")))
+
     def test_review_filter_keeps_candidate_and_verified_assertions_distinct(self):
         result = self.run_query({"query": "", "hard_filters": {"facets": [
             {"namespace": "field", "operator": "ANY", "tags": ["FL"], "review_state": "verified"}
@@ -133,9 +150,13 @@ class SearchTests(unittest.TestCase):
 
     def test_unsupported_modes_fields_and_boolean_limit_are_rejected(self):
         for request in ({"query": "x", "mode": "BRIDGE"},
+                        {"query": "x", "mode": []},
                         {"query": "x", "sql": "select * from papers"},
                         {"query": "x", "limit": True},
-                        {"query": "x", "hard_filters": {"facets": [], "soft_concepts": []}}):
+                        {"query": "x", "hard_filters": {"facets": [], "soft_concepts": []}},
+                        {"query": "x", "hard_filters": {"facets": [
+                            {"namespace": "field", "operator": [], "tags": ["field/federated-learning"]}
+                        ]}}):
             with self.subTest(request=request), self.assertRaises(ValueError):
                 self.run_query(request)
 
@@ -145,10 +166,37 @@ class SearchTests(unittest.TestCase):
         self.assertEqual(result["dense_status"], "unavailable")
 
     def test_dense_rank_is_fused_and_tag_alias_is_searchable(self):
-        result = self.run_query({"query": "FL"}, dense=["P2", "P1"])
+        result = self.run_query({"query": "FL", "mode": "BROAD"}, dense=["P2", "P1"])
         self.assertEqual(result["dense_status"], "ready")
         self.assertIn("P1", self.ids(result))
         self.assertIn("SEMANTIC", result["results"][0]["match_routes"])
+
+    def test_strict_keeps_dense_only_candidates_out_but_broad_fuses_them(self):
+        strict = self.run_query({"query": "attention", "mode": "STRICT"}, dense=["P3"])
+        broad = self.run_query({"query": "attention", "mode": "BROAD"}, dense=["P3"])
+        self.assertEqual(self.ids(strict), ["P1"])
+        self.assertIn("P3", self.ids(broad))
+
+    def test_empty_and_malformed_dense_rankings_are_unavailable(self):
+        for dense in ([], {}, {"results": []}, {"results": [{}]}, ["P1", "P1"]):
+            with self.subTest(dense=dense):
+                result = self.run_query({"query": "attention", "mode": "BROAD"}, dense=dense)
+                self.assertEqual(result["dense_status"], "unavailable")
+                self.assertEqual(self.ids(result), ["P1"])
+
+    def test_dense_callback_is_called_only_for_broad_search_and_failure_falls_back(self):
+        calls = []
+        def provider(query):
+            calls.append(query)
+            return {"results": ["P3"]}
+        strict = self.run_query({"query": "attention", "mode": "STRICT"}, dense=provider)
+        broad = self.run_query({"query": "attention", "mode": "BROAD"}, dense=provider)
+        self.assertEqual(calls, ["attention"])
+        self.assertNotIn("P3", self.ids(strict))
+        self.assertIn("P3", self.ids(broad))
+        failed = self.run_query({"query": "attention", "mode": "BROAD"}, dense=lambda _: 1 / 0)
+        self.assertEqual(self.ids(failed), ["P1"])
+        self.assertEqual(failed["dense_status"], "unavailable")
 
 
 if __name__ == "__main__":

@@ -16,13 +16,13 @@ _PAPER_STATES = {
 _ELIGIBILITY = {
     "unknown", "exploratory", "verified-qualified", "verified-not-qualified",
 }
-_TAG_STATES = {"verified", "needs-manual-review", "rejected"}
 _FACET_STATES = {"verified", "needs-manual-review"}
 _REQUEST_FIELDS = {"query", "mode", "scope", "limit", "cursor", "hard_filters"}
 _HARD_FILTER_FIELDS = {"eligibility", "review_state", "exclude_paper_ids", "facets"}
 _FACET_FIELDS = {"namespace", "operator", "tags", "review_state"}
 _DOI = re.compile(r"(?i)(?:https?://(?:dx\.)?doi\.org/|doi:\s*)?(10\.\d{4,9}/[^\s\"<>]+)")
-_ARXIV = re.compile(r"(?i)(?:arxiv:\s*)?((?:\d{4}\.\d{4,5})(?:v\d+)?|[a-z-]+(?:\.[A-Z]{2})?/\d{7})(?:v\d+)?")
+_ARXIV_ID = r"(?:\d{4}\.\d{4,5}|[a-z-]+(?:\.[a-z]{2})?/\d{7})"
+_ARXIV = re.compile(rf"(?i)(?:arxiv:\s*)?({_ARXIV_ID})(?:v\d+)?")
 _WORD = re.compile(r"[\w]+", re.UNICODE)
 
 
@@ -55,7 +55,7 @@ def _validate(request: Any) -> tuple[str, str, int, str | None, dict]:
     if not isinstance(query, str) or len(query) > 10000:
         raise ValueError("query must be a string of at most 10000 characters")
     mode = request.get("mode", "STRICT")
-    if mode not in {"STRICT", "BROAD"}:
+    if not isinstance(mode, str) or mode not in {"STRICT", "BROAD"}:
         raise ValueError("mode must be STRICT or BROAD")
     scope = request.get("scope", "LOCAL_ONLY")
     if scope != "LOCAL_ONLY":
@@ -82,12 +82,14 @@ def _validate(request: Any) -> tuple[str, str, int, str | None, dict]:
         _keys(facet, _FACET_FIELDS, "facet")
         if not isinstance(facet.get("namespace"), str) or not facet["namespace"]:
             raise ValueError("facet namespace must be a non-empty string")
-        if facet.get("operator") not in {"ANY", "ALL", "NOT"}:
+        if not isinstance(facet.get("operator"), str) or facet["operator"] not in {"ANY", "ALL", "NOT"}:
             raise ValueError("facet operator must be ANY, ALL or NOT")
         tags = _unique_strings(facet.get("tags"), "facet tags")
         if not tags or any(not tag for tag in tags):
             raise ValueError("facet tags must be non-empty strings")
-        if "review_state" in facet and facet["review_state"] not in _FACET_STATES:
+        if "review_state" in facet and (
+            not isinstance(facet["review_state"], str) or facet["review_state"] not in _FACET_STATES
+        ):
             raise ValueError("Invalid facet review_state")
     return query, mode, limit, cursor, filters
 
@@ -148,18 +150,34 @@ def _normalize_doi(value: Any) -> str | None:
     if not isinstance(value, str):
         return None
     match = _DOI.fullmatch(value.strip())
-    return match.group(1).rstrip(".,;)").casefold() if match else None
+    return match.group(1).casefold() if match else None
 
 
-def _normalize_arxiv(value: str) -> str | None:
-    match = _ARXIV.fullmatch(value.strip())
+def _normalize_arxiv(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    if candidate.casefold().startswith(("http://", "https://")):
+        try:
+            parsed = urlsplit(candidate)
+            hostname = parsed.hostname
+        except ValueError:
+            return None
+        if hostname not in {"arxiv.org", "www.arxiv.org"}:
+            return None
+        candidate = parsed.path.rsplit("/", 1)[-1]
+        if candidate.casefold().endswith(".pdf"):
+            candidate = candidate[:-4]
+    else:
+        candidate = re.sub(r"(?i)^arxiv:\s*", "", candidate)
+    match = _ARXIV.fullmatch(candidate)
     return match.group(1).casefold() if match else None
 
 
 def _query_parts(query: str) -> tuple[str | None, str | None, list[str], list[str]]:
     doi_match = _DOI.search(query.strip())
     arxiv_match = _ARXIV.search(query.strip())
-    doi = doi_match.group(1).rstrip(".,;)").casefold() if doi_match else None
+    doi = doi_match.group(1).casefold() if doi_match else None
     arxiv = arxiv_match.group(1).casefold() if arxiv_match else None
     phrases = [" ".join(_WORD.findall(item)) for item in re.findall(r'"([^"\n]+)"', query)]
     terms = _WORD.findall(re.sub(r'"[^"\n]+"', " ", query))
@@ -222,7 +240,7 @@ def _paper_filter(paper: dict, filters: dict, facets: list[dict]) -> bool:
         for tag in paper.get("tags", []):
             if not isinstance(tag, dict) or tag.get("tag_id") not in selected:
                 continue
-            if tag.get("review_state") not in _TAG_STATES:
+            if tag.get("review_state") not in {"verified", "needs-manual-review"}:
                 continue
             if facet.get("review_state") and tag.get("review_state") != facet["review_state"]:
                 continue
@@ -253,7 +271,9 @@ def _decode_cursor(cursor: str | None, query_hash: str, index_hash: str) -> int:
     if cursor is None:
         return 0
     try:
-        raw = base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4))
+        if len(cursor) > 512 or not re.fullmatch(r"[A-Za-z0-9_-]+", cursor):
+            raise ValueError
+        raw = base64.b64decode(cursor + "=" * (-len(cursor) % 4), altchars=b"-_", validate=True)
         data = json.loads(raw)
         offset = data["offset"]
         if type(offset) is not int or offset < 0 or data["query"] != query_hash or data["index"] != index_hash:
@@ -263,21 +283,36 @@ def _decode_cursor(cursor: str | None, query_hash: str, index_hash: str) -> int:
         raise ValueError("Invalid or stale cursor") from error
 
 
-def _dense_ranks(dense: Any, warnings: list[str]) -> tuple[dict[str, int], str]:
+def _dense_ranks(dense: Any, warnings: list[str], query: str) -> tuple[dict[str, int], str]:
     if dense is None:
         return {}, "unavailable"
     try:
+        if callable(dense):
+            dense = dense(query)
         if isinstance(dense, dict):
-            values = dense.get("results", dense.get("paper_ids", []))
+            if dense.get("status") == "unavailable":
+                raise ValueError
+            if "results" in dense:
+                values = dense["results"]
+            elif "paper_ids" in dense:
+                values = dense["paper_ids"]
+            else:
+                raise ValueError
         else:
             values = dense
-        if not isinstance(values, (list, tuple)):
+        if not isinstance(values, (list, tuple)) or not values:
             raise ValueError
         ranks = {}
         for item in values:
-            paper_id = item if isinstance(item, str) else item.get("paper_id") if isinstance(item, dict) else None
-            if isinstance(paper_id, str) and paper_id not in ranks:
-                ranks[paper_id] = len(ranks) + 1
+            if isinstance(item, str):
+                paper_id = item
+            elif isinstance(item, dict):
+                paper_id = item.get("paper_id")
+            else:
+                raise ValueError
+            if not isinstance(paper_id, str) or not paper_id or paper_id in ranks:
+                raise ValueError
+            ranks[paper_id] = len(ranks) + 1
         return ranks, "ready"
     except Exception:
         warnings.append("Dense retrieval was unavailable; lexical results were used")
@@ -312,8 +347,11 @@ def search(papers: Iterable[dict], tags: Iterable[dict], request: dict, dense: A
             ):
                 lexical[paper_id] = float(score)
         warnings: list[str] = []
-        dense_rank, dense_status = _dense_ranks(dense, warnings)
-        candidate_ids = set(lexical) | set(dense_rank)
+        if mode == "BROAD" and query.strip() and not (doi or arxiv):
+            dense_rank, dense_status = _dense_ranks(dense, warnings, query)
+        else:
+            dense_rank, dense_status = {}, "unavailable"
+        candidate_ids = set(lexical)
         direct_ids = set()
         if doi:
             direct_ids = {pid for pid, paper in by_id.items() if _normalize_doi(paper.get("doi")) == doi}
@@ -322,9 +360,14 @@ def search(papers: Iterable[dict], tags: Iterable[dict], request: dict, dense: A
             direct_ids.update(
                 pid for pid, paper in by_id.items()
                 if any(_normalize_arxiv(identifier) == arxiv for identifier in paper.get("identifiers", []))
-                or _normalize_arxiv(str(paper.get("source_url") or "").rsplit("/", 1)[-1]) == arxiv
+                or _normalize_arxiv(paper.get("source_url")) == arxiv
             )
             candidate_ids.update(direct_ids)
+        if doi or arxiv:
+            # Identifier lookup is exact: token overlap cannot widen it.
+            candidate_ids = set(direct_ids)
+        elif mode == "BROAD" and query.strip():
+            candidate_ids.update(dense_rank)
         if not query.strip() or not (fts or doi or arxiv):
             candidate_ids = set(by_id)
 
