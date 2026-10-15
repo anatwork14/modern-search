@@ -208,6 +208,7 @@ def _build_fts(papers: list[dict], tag_by_id: dict[str, dict]) -> tuple[sqlite3.
             " ".join([str(tag_by_id[t.get("tag_id")].get("label", "")),
                        *tag_by_id[t.get("tag_id")].get("aliases", [])])
             for t in tag_rows if isinstance(t, dict) and t.get("tag_id") in tag_by_id
+            and t.get("review_state") in {"verified", "needs-manual-review"}
         )
         values = (
             paper_id,
