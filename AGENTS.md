@@ -74,3 +74,7 @@ Also read docs/PLATFORM_EXPANSION_RESEARCH.md, docs/EXTENSIBILITY_AND_PLUGIN_API
 Do not build a general-purpose second brain or an army of agents before validating the paper retrieval MVP. Use first-party ports/adapters in a modular monolith. A proposed third-party plugin must pass schema/permission checks and an ADR before execution; default third-party code loading is forbidden. Agent-facing MCP/CLI is **read-only** until explicit human-approved capability work. Treat paper-to-code links and novelty hypotheses as unverified until independently checked. Separate per-profile corpus ACL and quality policy at every retrieval stage.
 
 Status protocol: record EX-* work only under the extension backlog in progress.md. Keep external scholarly evidence, agent-inferred hypotheses, planned features and reproduced results separate.
+
+## First-run parallel kickoff
+
+For multi-agent implementation, **read [START_HERE.md](START_HERE.md)** and follow its five isolated worktree/worker contracts, interface freeze, CI and integration rules. The kickoff document describes how to spawn workers; it does **not** imply any workers are already running. Lead agent owns progress.md updates, not parallel workers. Always check branch and PR #1 status before creating a worktree; main may still have only README and LICENSE.

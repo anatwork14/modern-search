@@ -70,3 +70,7 @@ The first product remains a trusted **academic research engine**. Optional exten
 - [Draft extension manifest validation schema](spec/extension_manifest.schema.json)
 
 **Decision:** modular monolith and first-party adapters now; third-party sandbox/plugins, cloud/team collaboration and automated execution deferred until measured demand. Hypotheses/semantic associations are never represented as empirically verified findings.
+
+## Begin implementation with parallel agents
+
+**Start here:** [START_HERE.md](START_HERE.md) — lead/orchestrator kickoff with five independent workers (data, desktop, embeddings, retrieval, quality), separate Git worktrees, interface contracts, acceptance tests and strict progress tracking. This file instructs agent spawning; it is not evidence of active worker processes or a built app. The lead must verify that the spec PR is still unmerged before choosing the implementation branch.

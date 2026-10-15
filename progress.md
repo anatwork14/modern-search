@@ -120,3 +120,19 @@ The following deliverables are **DONE as research/specification only** on this d
 ### Next implementation rule
 
 Work **P0-01** first; optional EX-* proposals cannot supersede P0 correctness, provenance and offline search. Agent owners can separately research interfaces but should not implement competing services, generic chat frameworks, or unreviewed extension loaders. When an extension actually ships, update this ledger with its code path, tests, measurements, commit and PR.
+
+## Parallel execution kickoff (instructions committed; worker sessions not verified)
+
+**Status:** kickoff playbook PREPARED, worker processes NOT STARTED by this documentation change. See [START_HERE.md](START_HERE.md). Recommended 1 lead + 5 worker agents; coordinator must launch them in the actual Claude/Codex/Hermes or other supported runtime and record observed branches/PRs/tests. Never change the IN_PROGRESS table on the basis of this plan alone.
+
+Planned independent tracks (all TODO until started):
+
+| Track | Tasks | Owned interface | Release dependency |
+|---|---|---|---|
+| Worker A (data) | P0-01, P0-03/04/05 | SQLite migrations, Drive audit/import | First source-of-truth contract |
+| Worker B (desktop) | P0-02, later P0-11 | Tauri/React and IPC shell | Worker D search service |
+| Worker C (ML) | P0-08, then P0-09 | embedding adapter and index manifest | Official checkpoint + Mac compatibility |
+| Worker D (retrieval) | P0-06/07, then P0-10 | FTS5, AST/facets, RRF | Worker A schema; Worker C dense API |
+| Worker E (QA) | CI/fixtures/security; P1-05 protocol | independent test gates | scaffolding and interfaces |
+
+**Do not report tasks as IN_PROGRESS until lead observes an actual agent session or implementation branch.** Coordinator creates per-worker worktrees serially before launching workers in parallel, and maintains one integration branch based on the docs commit if PR #1 is still unmerged.
