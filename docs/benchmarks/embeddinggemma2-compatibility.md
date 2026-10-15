@@ -34,8 +34,17 @@ Host: Apple Silicon arm64, macOS Darwin 27.0.0, 16 GiB RAM, 50 GiB free at
 inspection. Python 3.11.16 is available. The pre-existing Python 3.10.7 runtime
 has Torch 2.8.0 with MPS available, Transformers 4.57.3, and no
 SentenceTransformers. A separate Python 3.11 virtual environment under `/tmp`
-is being used for the pinned model smoke check; no global or repository
-dependencies are installed.
+contains Torch 2.14.1, Transformers 5.19.0, SentenceTransformers 6.1.0,
+Safetensors 0.8.0, and Hugging Face Hub 1.33.0. That runtime reports MPS
+available, and SentenceTransformer exposes the `model_kwargs` argument used for
+selective encoder configuration. No global or repository dependencies were
+installed.
+
+The pinned model weights have **not** been downloaded and no model inference
+has been run. The compatibility check above verifies source and installed
+runtime APIs, but selective text-only weight loading and actual CPU/MPS
+embedding behavior remain unverified. No throughput, latency, memory, or
+embedding quality measurement is reported.
 
 No local throughput, latency, peak-memory, or quality benchmark should be
 claimed until the pinned model is loaded and measured with a recorded command.
