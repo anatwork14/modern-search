@@ -20,25 +20,21 @@ missing; missing dependencies are not treated as a passing skip.
 
 ## Desktop and native checks
 
-With Node 22 and Rust installed:
+With the Python 3.11 environment prepared as above, Node 22 and Rust installed,
+run the root gate. It supplies the Python interpreter and a disposable empty
+database for the real Rust-to-Python stdio smoke test:
 
 ```sh
-cd apps/desktop
-npm ci
-npm test
-npm run lint
-npm run build
-cd src-tauri
-cargo test --locked
-cargo check --locked
+./scripts/check.sh
 ```
 
 Then run `npm run tauri dev` from `apps/desktop` on the target macOS machine.
-Confirm the window opens, `Local service` health is shown, a local query returns
-only the fixture catalog, closing the window exits the child process, and no
-listening socket is created. Record each item as `PASS`, `FAIL`, or `NOT RUN`
-with the exact host and command. Browser preview, compilation, and mock data do
-not prove this native smoke gate.
+Confirm the window opens, `Local service` health is shown, and searches use only
+records present in the configured local database. Confirm closing the window
+exits the child process and no listening socket is created. Record each item as
+`PASS`, `FAIL`, or `NOT RUN` with the exact host and command. Keep private
+catalog output out of tracked reports. Browser preview, compilation, and mock
+data do not prove this native smoke gate.
 
 The current desktop bridge has no release-bundled Python service or database
 resources. A release build must not be described as searchable until a bundle
