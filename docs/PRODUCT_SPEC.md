@@ -59,3 +59,9 @@ User can import and reconcile real Drive data, run three representative research
 ## User experience principles
 
 Research-first rather than chat-first; show query interpretation and allowed expansions. Separate exact matches, semantic similarity, related/citation expansion, and hypothesized bridges. Make indexing coverage and annotation reliability visible. Keep the interaction keyboard-accessible, fast under realistic corpus sizes, and recoverable from interruptions.
+
+## Long-term platform expansion (not V1 scope)
+
+ResearchOS may add evidence-grounded claim comparisons, citation genealogy, cross-domain mechanism transfer, research project matrices, paper→code→experiment lineage and read-only agent/CLI access. The same local-first retrieval core could host multiple *application profiles* (technical documentation, source repositories, patent prior art, educational materials); each needs explicit source permissions, facets, quality policies and type-aware evidence. See [PLATFORM_EXPANSION_RESEARCH.md](PLATFORM_EXPANSION_RESEARCH.md) and [APPLICATION_PROFILES.md](APPLICATION_PROFILES.md).
+
+Impact priorities: trusted retrieval and provenance first, then evidence comparison and researcher workflow, then testable concept bridges, then generic profiles. Automated novelty certification, uncontrolled paper-code execution and multiuser cloud collaboration are not MVP claims. Do not convert this into a chatbot or generic enterprise content management suite.

@@ -66,3 +66,11 @@ Implemented code + unit tests + integration/e2e coverage as applicable + documen
 ## First tasks
 
 Start at P0-01 in progress.md: inspect/reconcile the Drive workbook/archive and create a tested import contract. In parallel, a separate agent may scaffold Tauri UI only after shared interfaces are agreed. Never start by claiming all catalog PDFs are locally available.
+
+## Expansion policy (2026-10-15 design update)
+
+Also read docs/PLATFORM_EXPANSION_RESEARCH.md, docs/EXTENSIBILITY_AND_PLUGIN_API.md, docs/RESEARCH_WORKFLOWS.md and docs/APPLICATION_PROFILES.md when working on EX-* tasks. These are **optional specifications**, never permission to postpone P0 deliverables or claim implemented features.
+
+Do not build a general-purpose second brain or an army of agents before validating the paper retrieval MVP. Use first-party ports/adapters in a modular monolith. A proposed third-party plugin must pass schema/permission checks and an ADR before execution; default third-party code loading is forbidden. Agent-facing MCP/CLI is **read-only** until explicit human-approved capability work. Treat paper-to-code links and novelty hypotheses as unverified until independently checked. Separate per-profile corpus ACL and quality policy at every retrieval stage.
+
+Status protocol: record EX-* work only under the extension backlog in progress.md. Keep external scholarly evidence, agent-inferred hypotheses, planned features and reproduced results separate.

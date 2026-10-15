@@ -58,3 +58,15 @@ The Drive workbook reports 1,616 canonical tags, 2,478 discovery candidates and 
 ## First contribution
 
 Do NOT claim this README provides a working desktop app. Follow Stage 0 in [progress.md](progress.md) to implement the smallest import and search vertical slice. For every task: tests + evidence + progress update + PR review.
+
+## Platform expansion (research/design, not implemented)
+
+The first product remains a trusted **academic research engine**. Optional extensions may transform the same local-first core into a broader **Research Intelligence Platform**: evidence/claim comparison, paper-to-code-to-experiment lineage, mechanism bridge hypotheses, citation evolution, read-only agent tools, and domain-specific document search. These do **not** block the first working search vertical slice.
+
+- [Expansion opportunity and trade-off study](docs/PLATFORM_EXPANSION_RESEARCH.md)
+- [High-value research workflows](docs/RESEARCH_WORKFLOWS.md)
+- [Extensible ports/adapters, plugins and MCP read-only contract](docs/EXTENSIBILITY_AND_PLUGIN_API.md)
+- [Applications and source-scope profiles](docs/APPLICATION_PROFILES.md)
+- [Draft extension manifest validation schema](spec/extension_manifest.schema.json)
+
+**Decision:** modular monolith and first-party adapters now; third-party sandbox/plugins, cloud/team collaboration and automated execution deferred until measured demand. Hypotheses/semantic associations are never represented as empirically verified findings.

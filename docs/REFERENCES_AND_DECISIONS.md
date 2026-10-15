@@ -32,7 +32,7 @@ ADR-008 **Avoid premature services/agents** — no Qdrant, server search, hosted
 ## Verified primary documentation for implementation
 
 - EmbeddingGemma 2 official launch (2026-10-06): https://blog.google/innovation-and-ai/technology/developers-tools/embeddinggemma-2/
-- EmbeddingGemma 2 developer guide and prompts: https://developers.googleblog.com/embeddinggemma-2-the-developer-guide/
+- EmbeddingGemma 2 developer guide and prompts: https://developers.googleblog.com/en/embeddinggemma-2-the-developer-guide/
 - Google model card: https://ai.google.dev/gemma/docs/embeddinggemma/model_card_2
 - Hugging Face checkpoint: https://huggingface.co/google/embeddinggemma-2
 - SentenceTransformers inference guide: https://ai.google.dev/gemma/docs/embeddinggemma/inference-embeddinggemma-with-sentence-transformers
@@ -62,3 +62,30 @@ ADR-008 **Avoid premature services/agents** — no Qdrant, server search, hosted
 ## Source limitations
 
 Three user-provided X posts were linked in the originating research discussion, but their content was not independently available; rely on Google's first-party material rather than attributing unseen claims. The local search and benchmark numbers remain unknown, and the full tagged Drive corpus has not been independently checked article-by-article. This repository should not claim it has run those experiments.
+
+## Additional platform-extension ADRs (proposals)
+
+ADR-009 **Expand to Research Intelligence through optional modules, not a monolithic everything-app.** Reuse trusted paper search; add evidence, code/experiment traceability and cross-domain projects in staged gates. Reference docs/PLATFORM_EXPANSION_RESEARCH.md.
+
+ADR-010 **First-party extension contracts, optional future plugin API.** No runtime execution of arbitrary plugin packages; declared permissions, schema compatibility, resource budgets and signed/approved code path required. Reference docs/EXTENSIBILITY_AND_PLUGIN_API.md and spec/extension_manifest.schema.json.
+
+ADR-011 **Agent-facing query interface is read-only by default.** Once search API works, implement CLI/stdio MCP; no arbitrary SQL, filesystem or remote calls. Source scope and evidence quality typed.
+
+ADR-012 **Application profiles are bounded by source and evidence policy.** Academic paper profile first; architecture/code and education next, patent prior-art only as careful exploratory pilot. No medical/legal investment decision automation.
+
+ADR-013 **Hypothesis generation never certifies novelty, causality or reproducibility.** Two-domain bridge cards require assumptions, disanalogies and explicit falsification experiments.
+
+### Additional verified sources for expansion
+
+- PaperQA2: https://github.com/future-house/paper-qa
+- OpenScholar Nature article (2026): https://www.nature.com/articles/s41586-025-10072-4
+- OpenAlex works and citations: https://help.openalex.org/data/works/ ; https://help.openalex.org/data/works/citations/
+- OpenAlex citation/related queries: https://help.openalex.org/how-to/api-recipes/
+- Semantic Scholar API/recommendations: https://api.semanticscholar.org/api-docs/recommendations
+- Docling structured document representation: https://github.com/docling-project/docling
+- olmOCR parser benchmark: https://github.com/allenai/olmocr
+- Khoj pluggable multi-source search: https://github.com/khoj-ai/khoj
+- MLflow Tracking: https://mlflow.org/docs/latest/ml/tracking/
+- Citation.js and Zotero Local API: https://github.com/citation-js/citation-js ; https://www.zotero.org/support/dev/web_api/v3/local_api
+- MCP tool schema and permissions: https://modelcontextprotocol.io/specification/2025-11-25/server/tools
+- **Correct EmbeddingGemma 2 developer guide URL:** https://developers.googleblog.com/en/embeddinggemma-2-the-developer-guide/

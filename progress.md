@@ -87,3 +87,36 @@ Order is dependency-aware. Priority P0 = unblock MVP; P1 = improve correctness; 
 ## Changelog
 
 - **2026-10-15 — Specification setup:** repo baseline audited; README, AGENTS.md, planning specs, schema draft, query fixtures, and this ledger prepared. No runtime implementation, local indexing or retrieval benchmarks claimed.
+
+## Platform-expansion research — completed design, NOT completed features
+
+The following deliverables are **DONE as research/specification only** on this documentation branch:
+- Opportunity and competitive-capability analysis: docs/PLATFORM_EXPANSION_RESEARCH.md
+- Optional modules and agent plugin contract: docs/EXTENSIBILITY_AND_PLUGIN_API.md
+- Application profiles: docs/APPLICATION_PROFILES.md
+- Research evidence / cross-domain / reproducibility workflows: docs/RESEARCH_WORKFLOWS.md
+- Draft extension manifest schema: spec/extension_manifest.schema.json
+
+**Implementation for ALL features below remains TODO.** Do not use 'DONE' for an integration because a reference or manifest file exists. Do not start platform expansion before P0-01/P0-02 and a functioning search vertical slice.
+
+### Extension backlog — dependency aware, non-blocking to P0
+
+- [ ] **EX-01 [P1] Claim and evidence layer.** Add extraction of role-aware claims, limitations, assumptions, exact source passages/page spans and reviewer QA. **Gate:** evaluated precision and zero invented locators on labeled PDFs. **Depends:** P1-02, P1-03.
+- [ ] **EX-02 [P1] Research workspace / comparisons / citation export.** Saved research projects, matrices, reading queue and source-backed Markdown/CSV/BibTeX/CSL exports. **Gate:** every populated evidence cell has a traceable source; unknown stays unknown. **Depends:** P0-10, P1-02.
+- [ ] **EX-03 [P1→P2] Paper-code-experiment links.** Add GitHub repo + commit SHA, dataset/split hash, MLflow run references, publication-vs-reproduction status. **Gate:** no untested experiment tagged reproduced; independent metrics carry context. **Depends:** P0-05, EX-01.
+- [ ] **EX-04 [P2] Cross-domain mechanism bridge cards.** Dual-basket search, mechanism ontology, disanalogies, testable hypotheses, falsification experiments; verified bridge ≠ semantic analogy. **Gate:** human-labeled bridge relevancy and false-equivalence study. **Depends:** P0-10, P1-05, EX-01.
+- [ ] **EX-05 [P2] Citation genealogy + temporal topic discovery.** Source-backed backward/forward reference graph and timeline. **Gate:** citation edges have originating evidence; no fabricated chronology. **Depends:** P2-01, P2-02.
+- [ ] **EX-06 [P1 after API] Safe agent interface.** Read-only CLI/MCP adapter for Codex/Claude/Hermes to search and fetch citations, with explicit source scopes. **Gate:** UI/API filter equivalence, negative authorization tests, no unrestricted file access. **Depends:** P0-10, docs/EXTENSIBILITY_AND_PLUGIN_API.md.
+- [ ] **EX-07 [P1 interfaces, P2 profiles] Pluggable parsers/sources/profiles.** Versioned typed extension manifests, local GitHub/Markdown importer and separate application profile. **Gate:** contract tests, no mixed ACL/corpus leakage; disabled plugins offline. **Depends:** P0-03, P0-05, P1-02.
+- [ ] **EX-08 [P2 experimental] Novelty/contradiction suggestion queue.** Auditable, explicitly hypothetical findings and contradiction candidates; human approval. **Gate:** source-specific contradictions, comparable metrics, zero unsupported novelty certification. **Depends:** EX-01, EX-04.
+- [ ] **EX-09 [P1] Citation/research report export.** Use metadata-preserving structured citations/CSL/BibTeX/Markdown. **Gate:** round-trip with test DOIs and no invented citations. **Depends:** P0-05.
+- [ ] **EX-10 [P2] Opt-in literature subscriptions.** Differential OpenAlex/Semantic Scholar changes with dedupe + user quality filters. **Gate:** new results only, strict source permission, rate limit and offline behavior. **Depends:** P2-02, P2-06.
+- [ ] **EX-11 [P2] Image/equation/table retrieval.** Evaluate multimodal Gemma and specialized PDF parsers. **Gate:** separate figure retrieval gold set and measured macOS costs. **Depends:** P1-02, P1-05, P2-07.
+- [ ] **EX-12 [P2] Research knowledge map.** Provenance-backed clusters/edges and source navigation, not decoration. **Gate:** graph edge precision and usefulness study. **Depends:** EX-05.
+- [ ] **EX-13 [DEFER] Team/server/ACL collaboration.** Do not add required cloud/multiuser services before research users demonstrate need and security model is approved.
+- [ ] **EX-14 [DEFER] Autonomous paper-code execution/GPU orchestration.** Explicit permission, sandboxed execution and strict resource limits required; not an automatic import feature.
+- [ ] **EX-15 [DO NOT CLAIM] Definitive novelty certification, scientific correctness, self-directed publication.** Never market or mark as reliable without independent expert validation.
+
+### Next implementation rule
+
+Work **P0-01** first; optional EX-* proposals cannot supersede P0 correctness, provenance and offline search. Agent owners can separately research interfaces but should not implement competing services, generic chat frameworks, or unreviewed extension loaders. When an extension actually ships, update this ledger with its code path, tests, measurements, commit and PR.

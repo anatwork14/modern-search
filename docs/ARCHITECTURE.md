@@ -89,3 +89,13 @@ Primary: Apple Silicon macOS, local model path tested with PyTorch MPS; CPU fall
 ## Dependencies
 
 Read DATA_AND_TAXONOMY and RETRIEVAL_SPEC before designing storage APIs. Keep all provider adapters optional, authenticated and rate-limited; local search must never require a remote backend.
+
+## Optional Research Intelligence expansion (no default service proliferation)
+
+The architecture is a **modular monolith**, not a microservice platform. Keep current SQLite + FTS5 + embedded vector + Tauri/Python sidecar as core. Introduce typed first-party *ports* only when implementing concrete needs: SourceAdapter, Parser, WorkNormalizer, EmbeddingProvider, RetrievalRoute, EvidenceExtractor, Exporter, ApplicationProfile and read-only AgentGateway. Details and explicit capabilities: [EXTENSIBILITY_AND_PLUGIN_API.md](EXTENSIBILITY_AND_PLUGIN_API.md).
+
+Shared objects after migration may generalize work/document/source/evidence while retaining stable Paper_ID and scholarly evidence. Support optional academic, research engineering, technical architecture, patent, educational and other profiles with separate indexing/ACLs per [APPLICATION_PROFILES.md](APPLICATION_PROFILES.md). Avoid a graph DB for citation/concept edges until relational evidence proves inadequate. Do not hot-load unknown third-party code.
+
+Cross-domain hypothesis workflow must cite **both** originating and target domains and declare disanalogies and falsifiable tests; semantic similarity alone does not establish factual equivalence. Paper-to-code-to-experiment linking stores code commit, dataset fingerprint, observed run ID, and evaluation context, never claims a reproduced paper based solely on finding code. See [RESEARCH_WORKFLOWS.md](RESEARCH_WORKFLOWS.md).
+
+The extension roadmap in progress.md is non-blocking to Stage 0. All ports/profile/MCP capabilities described above are design-only until actual tested implementation is recorded.
