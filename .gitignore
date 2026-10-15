@@ -50,3 +50,6 @@ local-data/
 # Source code and tests named data are tracked.
 !tests/data/
 !tests/data/**
+
+# Local integration tooling and temporary evidence
+/work/
