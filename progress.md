@@ -23,16 +23,16 @@
 
 ## In progress
 
-Implementation started from unmerged PR #1 specification commit e85962c. Runtime capacity: lead plus three active workers; D/E are queued, not running. Five isolated worktrees exist. Integration protocol: docs/contracts/MVP_V1.md. Git HTTPS pushes currently time out; integration branch created through GitHub API, local contract commit publication pending.
+Implementation started from unmerged PR #1 specification commit e85962c. Runtime capacity: lead plus three active workers; D is now running; E is queued, not running. Five isolated worktrees exist. Integration protocol: docs/contracts/MVP_V1.md. Git HTTPS/SSH push transports are blocked; exact Git objects are published via GitHub Git Database API with SHA equality checks. Integration branch remote verified at 54e6ef7.
 
 | ID | Owner / agent | Branch | Started (UTC) | Next check | Status |
 |---|---|---|---|---|---|
 | P0-01/03/04/05 | A / /root/worker_a_data | feat/p0-data, issue #2, PR pending | 2026-10-15T03:19Z | Drive audit, import/migration tests | IN_PROGRESS |
 | P0-02/11 | B / /root/worker_b_desktop | feat/p0-desktop, issue #3, PR pending | 2026-10-15T03:19Z | Native startup and typed IPC | IN_PROGRESS |
-| P0-08/09 | C / /root/worker_c_embeddings | feat/p0-embedding, issue #4, PR pending | 2026-10-15T03:19Z | Official model compatibility and adapter tests | IN_PROGRESS |
-| P0-06/07/10 | D / session not created | feat/p0-retrieval, issue #5, PR pending | — | Start when runtime slot opens | TODO |
+| P0-08/09 | C / /root/worker_c_embeddings (initial session completed) | feat/p0-embedding, issue #4, commit 5849d81, PR pending | 2026-10-15T03:19Z | Adapter tests PASS 7/7; real weights/inference pending lead bounded check; index TODO | IN_PROGRESS |
+| P0-06/07/10 | D / /root/worker_d_retrieval | feat/p0-retrieval, issue #5, PR pending | 2026-10-15T03:27Z | Contract ACK; independent FTS/filter/RRF tests | IN_PROGRESS |
 | CI/security | E / session not created | feat/p0-quality, issue #6, PR pending | — | Start when runtime slot opens | TODO |
-| Integration | Lead / /root | integration/researchos-mvp | 2026-10-15T03:19Z | Contract schema and stdio service; tests NOT RUN, dependencies A/D pending | IN_PROGRESS |
+| Integration | Lead / /root | integration/researchos-mvp | 2026-10-15T03:19Z | Contract schema and stdio service; malformed-input test PASS 1/1, full integration tests NOT RUN (A/D pending) | IN_PROGRESS |
 
 ## Prioritized backlog
 
