@@ -23,3 +23,7 @@ Tag dictionary: [{tag_id,namespace,label,aliases:[]}]. Paper review_state uses d
 ## Integration gates
 
 Each worker supplies executed test commands, commit and PR targeting integration/researchos-mvp. Lead reviews and reruns tests before merging. No main merge or release implied. Drive audit and native launch are separate gates from synthetic fixture tests. Private archives, model weights and databases stay outside Git.
+
+## Implemented additive metadata and host configuration
+
+Paper exports retain `identifiers: list[str]` and add identifier provenance records, `venue`, and source-asserted `venue_evidence`. UI venue assertions do not confer qualification. The host alone selects `RESEARCHOS_DB_PATH`, optional `RESEARCHOS_INDEX_PATH`, and `MODERN_SEARCH_PYTHON`; renderer requests cannot supply them. An index is tied to the complete exported corpus digest, so metadata refresh may require rebuilding it. BROAD dense enumeration covers the whole small catalog before strict filtering; semantic candidate count is not a relevance metric. One model reservation at a time applies to all workers.

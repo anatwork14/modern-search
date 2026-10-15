@@ -1,0 +1,214 @@
+"""Read a sanitized catalog from XLSX using only the Python standard library."""
+
+from __future__ import annotations
+
+import re
+import posixpath
+import xml.etree.ElementTree as ET
+import zipfile
+from pathlib import Path, PurePosixPath
+
+_NS = {
+    "main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+    "rel": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    "pkg": "http://schemas.openxmlformats.org/package/2006/relationships",
+}
+
+
+def _column_index(cell_ref: str) -> int:
+    letters = re.match(r"[A-Z]+", cell_ref).group(0)
+    index = 0
+    for letter in letters:
+        index = index * 26 + ord(letter) - 64
+    if index > 16384:
+        raise ValueError("XLSX column exceeds supported limit")
+    return index - 1
+
+
+def _xlsx_sheets(path: str | Path) -> dict[str, list[list[str]]]:
+    """Return workbook sheet rows, resolving shared and inline strings."""
+    if Path(path).stat().st_size > 32 * 1024 * 1024:
+        raise ValueError("XLSX archive exceeds size limit")
+    with zipfile.ZipFile(path) as archive:
+        members = archive.infolist()
+        if len(members) > 1000 or sum(m.file_size for m in members) > 64 * 1024 * 1024:
+            raise ValueError("XLSX expanded archive exceeds resource limits")
+        names = set()
+        for info in members:
+            name = info.filename
+            if name in names or name.startswith("/") or "\\" in name or ".." in PurePosixPath(name).parts:
+                raise ValueError("Unsafe or duplicate XLSX member path")
+            names.add(name)
+            if info.flag_bits & 1 or info.file_size > 16 * 1024 * 1024 or info.file_size / max(info.compress_size, 1) > 200:
+                raise ValueError("XLSX member exceeds resource limits")
+        def read_xml(member):
+            data = archive.read(member)
+            if b"<!DOCTYPE" in data.upper() or b"<!ENTITY" in data.upper():
+                raise ValueError("XLSX XML declarations are forbidden")
+            return ET.fromstring(data)
+        workbook = read_xml("xl/workbook.xml")
+        relationships = read_xml("xl/_rels/workbook.xml.rels")
+        rels = relationships.findall("pkg:Relationship", _NS)
+        rel_ids = [rel.attrib.get("Id", "") for rel in rels]
+        if not all(rel_ids) or len(rel_ids) != len(set(rel_ids)):
+            raise ValueError("Ambiguous XLSX relationship IDs")
+        targets = {rel.attrib["Id"]: rel.attrib["Target"] for rel in rels}
+        shared: list[str] = []
+        if "xl/sharedStrings.xml" in archive.namelist():
+            root = read_xml("xl/sharedStrings.xml")
+            shared = ["".join(node.text or "" for node in item.findall(".//main:t", _NS)) for item in root.findall("main:si", _NS)]
+        sheets: dict[str, list[list[str]]] = {}
+        for sheet in workbook.findall("main:sheets/main:sheet", _NS):
+            name = sheet.attrib["name"]
+            if not name or name in sheets:
+                raise ValueError("Duplicate or empty XLSX sheet name")
+            target = targets[sheet.attrib[f"{{{_NS['rel']}}}id"]]
+            if (not target or "\\" in target or ":" in target or "?" in target or "#" in target
+                    or target.startswith("//")):
+                raise ValueError("Unsafe XLSX relationship path")
+            if target.startswith("/"):
+                member = posixpath.normpath(target.lstrip("/"))
+            else:
+                member = posixpath.normpath(posixpath.join("xl", target))
+            if (".." in PurePosixPath(member).parts or not member.startswith("xl/worksheets/")
+                    or not member.endswith(".xml") or member not in names):
+                raise ValueError("Unsafe XLSX relationship path")
+            root = read_xml(member)
+            rows: list[list[str]] = []
+            for row_node in root.findall("main:sheetData/main:row", _NS):
+                cells: dict[int, str] = {}
+                for cell in row_node.findall("main:c", _NS):
+                    ref = cell.attrib.get("r", "A1")
+                    idx = _column_index(ref)
+                    value = cell.find("main:v", _NS)
+                    if cell.attrib.get("t") == "s" and value is not None:
+                        text = shared[int(value.text or 0)]
+                    elif cell.attrib.get("t") == "inlineStr":
+                        text = "".join(node.text or "" for node in cell.findall(".//main:t", _NS))
+                    elif value is not None:
+                        text = value.text or ""
+                    else:
+                        text = ""
+                    cells[idx] = text
+                if cells:
+                    row = [""] * (max(cells) + 1)
+                    for idx, value in cells.items():
+                        row[idx] = value
+                    rows.append(row)
+                else:
+                    rows.append([])
+            sheets[name] = rows
+        return sheets
+
+
+def _records(rows: list[list[str]]) -> list[dict[str, str]]:
+    if not rows:
+        return []
+    header_row = next((row for row in rows if any(value.strip() for value in row)), [])
+    headers = [value.strip() for value in header_row]
+    normalized = [h.casefold() for h in headers if h]
+    if len(normalized) != len(set(normalized)):
+        raise ValueError("Duplicate XLSX column headers")
+    result = []
+    for row in rows[rows.index(header_row) + 1:]:
+        if not any(value.strip() for value in row):
+            continue
+        result.append({header: row[index].strip() if index < len(row) else "" for index, header in enumerate(headers) if header})
+    return result
+
+
+def load_workbook_catalog(path: str | Path) -> dict:
+    """Map source workbook headers into the versioned persistence import shape.
+
+    Raw ``Personal notes`` are deliberately excluded. Full source rows are retained
+    in the user's local snapshot separately when desired; source_records store only
+    the mapped fields passed to ``import_catalog``.
+    """
+    sheets = _xlsx_sheets(path)
+    table_names = {"TAG_DICTIONARY", "PAPER_LIBRARY", "PAPER_TAGS"}
+    if not table_names.issubset(sheets):
+        raise ValueError(f"workbook lacks required sheets: {', '.join(sorted(table_names - sheets.keys()))}")
+    required = {"TAG_DICTIONARY": {"Canonical tag", "Namespace", "English label"},
+                "PAPER_LIBRARY": {"Paper_ID", "Title"},
+                "PAPER_TAGS": {"Paper_ID", "Canonical tag"}}
+    for name, fields in required.items():
+        header = next((row for row in sheets[name] if any(v.strip() for v in row)), [])
+        if not fields.issubset({v.strip() for v in header}):
+            raise ValueError(f"Missing required XLSX headers in {name}")
+    tag_rows = _records(sheets["TAG_DICTIONARY"])
+    paper_rows = _records(sheets["PAPER_LIBRARY"])
+    edge_rows = _records(sheets["PAPER_TAGS"])
+    tags = []
+    for row in tag_rows:
+        tag_id = row.get("Canonical tag", "")
+        if not tag_id:
+            raise ValueError("TAG_DICTIONARY contains a row without a canonical tag ID")
+        tags.append({
+            "tag_id": tag_id,
+            "namespace": row.get("Namespace", ""),
+            "subgroup": row.get("Nhóm con", "") or None,
+            "label": row.get("English label", "") or tag_id.rsplit("/", 1)[-1],
+            "description": row.get("Ý nghĩa / Khi dùng", "") or None,
+            "aliases": [alias.strip() for alias in re.split(r"[;,]", row.get("Aliases / Search synonyms", "")) if alias.strip()],
+            "active": row.get("State", "Active").casefold() == "active",
+        })
+    papers = []
+    for row in paper_rows:
+        paper_id = row.get("Paper_ID", "")
+        if not paper_id or not row.get("Title", "").strip():
+            raise ValueError("PAPER_LIBRARY contains a row without Paper_ID or Title")
+        year = row.get("Year", "")
+        try:
+            year_value = int(float(year)) if year else None
+        except ValueError:
+            year_value = None
+        link = row.get("PDF / Drive link", "")
+        # Source rows say venue-qualified, but topical/validity checks remain open.
+        # Keep eligibility unknown until a trusted evidence review promotes it.
+        papers.append({
+            "paper_id": paper_id,
+            "title": row.get("Title", ""),
+            "authors": [author.strip() for author in row.get("Authors", "").split(";") if author.strip()],
+            "year": year_value,
+            "venue": row.get("Venue / Journal", "") or None,
+            "doi": row.get("DOI", "") or None,
+            "arxiv_id": row.get("arXiv ID", "") or None,
+            "source_url": row.get("Paper URL", "") or None,
+            "pdf_url": link or None,
+            "pdf_state": "REMOTE_ONLY" if link else "UNAVAILABLE",
+            "review_state": "discovered",
+            "eligibility": "unknown",
+            "venue_evidence": {
+                "venue_type": row.get("Venue type", "") or None,
+                "core_rank": row.get("CORE rank", "") or None,
+                "sjr_quartile": row.get("SJR quartile", "") or None,
+                "ranking_system": row.get("Ranking system", "") or None,
+                "ranking_year": int(row["Ranking year"]) if row.get("Ranking year", "").isdigit() else None,
+                "ranking_category": row.get("Ranking category / basis", "") or None,
+                "ranking_source_url": row.get("Ranking source URL", "") or None,
+                "publication_evidence_url": row.get("Publication evidence URL", "") or None,
+            },
+        })
+    tag_ids = {row["tag_id"] for row in tags}
+    paper_ids = {row["paper_id"] for row in papers}
+    paper_tags = []
+    for row in edge_rows:
+        paper_id, tag_id = row.get("Paper_ID", ""), row.get("Canonical tag", "")
+        if paper_id not in paper_ids:
+            raise ValueError(f"paper_tag references unknown paper {paper_id!r}")
+        if tag_id not in tag_ids:
+            raise ValueError(f"paper_tag references unknown tag {tag_id!r}")
+        qa = row.get("Manual QA status", "").casefold()
+        review_state = qa if qa in {"needs-manual-review", "verified", "rejected"} else "needs-manual-review"
+        paper_tags.append({
+            "paper_id": paper_id,
+            "tag_id": tag_id,
+            "role": "candidate",
+            "asserted_from": "lexical_discovery",
+            "review_state": review_state,
+            "evidence": row.get("Evidence in paper", "") or None,
+        })
+    return {"tags": tags, "papers": papers, "paper_tags": paper_tags}
+
+
+__all__ = ["load_workbook_catalog"]
