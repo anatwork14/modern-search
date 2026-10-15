@@ -41,6 +41,17 @@ export interface PaperTag {
   role: string;
 }
 
+export interface VenueEvidence {
+  venue_type?: string | null;
+  core_rank?: string | null;
+  sjr_quartile?: string | null;
+  ranking_system?: string | null;
+  ranking_year?: number | null;
+  ranking_category?: string | null;
+  ranking_source_url?: string | null;
+  publication_evidence_url?: string | null;
+}
+
 export interface SearchResult {
   paper_id: string;
   title: string;
@@ -49,6 +60,8 @@ export interface SearchResult {
   year: number | null;
   doi: string | null;
   source_url: string | null;
+  venue?: string | null;
+  venue_evidence?: VenueEvidence[];
   review_state: ReviewState;
   eligibility: string;
   tags: PaperTag[];

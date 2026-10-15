@@ -27,6 +27,11 @@ function routeLabel(route: string): string {
   return route.replaceAll("_", " ").toLowerCase();
 }
 
+function SafeEvidenceLink({ href, children }: { href?: string | null; children: string }) {
+  if (!href || !/^https?:\/\//i.test(href)) return null;
+  return <a href={href} target="_blank" rel="noreferrer">{children}</a>;
+}
+
 function PaperCard({ paper }: { paper: SearchResult }) {
   const verifiedTags = paper.tags.filter((tag) => tag.review_state === "verified");
   const candidateTags = paper.tags.filter((tag) => tag.review_state === "needs-manual-review");
@@ -45,7 +50,25 @@ function PaperCard({ paper }: { paper: SearchResult }) {
       <p className="paper-meta">
         {paper.authors.length ? paper.authors.join(", ") : "Author details unavailable"}
         {paper.year ? ` · ${paper.year}` : " · Year unavailable"}
+        {paper.venue ? ` · ${paper.venue}` : ""}
       </p>
+      {paper.venue_evidence?.length ? (
+        <div className="venue-evidence" aria-label="Source-reported venue evidence">
+          <strong>Source-reported venue evidence</strong>
+          <span className="muted">Displayed as supplied; not independently verified here.</span>
+          {paper.venue_evidence.map((evidence, index) => (
+            <div className="venue-evidence-item" key={`${evidence.ranking_system ?? "source"}-${evidence.ranking_year ?? "unknown"}-${index}`}>
+              <span>{[evidence.venue_type, evidence.ranking_system, evidence.core_rank, evidence.sjr_quartile, evidence.ranking_category]
+                .filter(Boolean).join(" · ") || "Ranking details unavailable"}</span>
+              <span>Ranking year: {evidence.ranking_year ?? "not supplied"}</span>
+              <div className="venue-links">
+                <SafeEvidenceLink href={evidence.ranking_source_url}>Ranking source</SafeEvidenceLink>
+                <SafeEvidenceLink href={evidence.publication_evidence_url}>Publication evidence</SafeEvidenceLink>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <p className="paper-abstract">{paper.abstract ?? "No abstract is available in the local index."}</p>
       <div className="evidence-row">
         <span className="evidence-label">Matched by</span>

@@ -66,6 +66,11 @@
 .state-pill.verified { background: #e9f3eb; color: #326246; }
 .state-pill.candidate { background: #f7f0e4; color: #8e6a2f; }
 .paper-meta { margin: 7px 0 9px; color: #88938c; font-size: 10px; }
+.venue-evidence { display: grid; gap: 5px; margin: 10px 0; padding: 10px 12px; border-left: 3px solid #9aa99f; background: #f6f8f6; font-size: 10px; }
+.venue-evidence-item { display: grid; gap: 4px; padding-top: 5px; border-top: 1px solid #e1e7e2; }
+.venue-links { display: flex; flex-wrap: wrap; gap: 12px; }
+.venue-links a { color: #2e6b4d; text-decoration: none; }
+.venue-links a:hover { text-decoration: underline; }
 .paper-abstract { max-width: 780px; margin: 0; color: #647269; font-size: 11px; line-height: 1.6; }
 .evidence-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 11px; }
 .evidence-label { margin-right: 3px; color: #8d9891; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }

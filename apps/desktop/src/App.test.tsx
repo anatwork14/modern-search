@@ -19,6 +19,10 @@ describe("ResearchOS desktop search shell", () => {
     expect(await screen.findByText("DEMO-001")).toBeInTheDocument();
     expect(screen.getByText(/fictional UI fixtures/i)).toBeInTheDocument();
     expect(screen.getByText("No PDF available")).toBeInTheDocument();
+    expect(screen.getByText("Source-reported venue evidence")).toBeInTheDocument();
+    expect(screen.getByText(/not independently verified here/i)).toBeInTheDocument();
+    expect(screen.getByText("Ranking year: 2023")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ranking source" })).toHaveAttribute("href", "https://example.com/demo-ranking");
   });
 
   it("keeps local library empty state distinct from demo records", async () => {

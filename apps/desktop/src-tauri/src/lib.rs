@@ -9,6 +9,7 @@ use wait_timeout::ChildExt;
 
 const SERVICE_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_RESPONSE_BYTES: u64 = 8 * 1024 * 1024;
+const MAX_REQUEST_BYTES: usize = 1_048_576;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct RpcRequest {
@@ -69,6 +70,12 @@ fn invoke_service(command_name: &str, payload: Value) -> Result<Value, RpcError>
         code: "INTERNAL_ERROR".into(),
         message: "Could not encode the local search request.".into(),
     })?;
+    if request_bytes.len() > MAX_REQUEST_BYTES {
+        return Err(RpcError {
+            code: "INVALID_REQUEST".into(),
+            message: "The local search request exceeded the 1 MiB size limit.".into(),
+        });
+    }
     let python = std::env::var("MODERN_SEARCH_PYTHON").unwrap_or_else(|_| "python3".into());
     let mut child = Command::new(python)
         .arg("-m")
@@ -189,6 +196,15 @@ fn invoke_service(command_name: &str, payload: Value) -> Result<Value, RpcError>
     }
 }
 
+async fn invoke_service_async(command_name: &'static str, payload: Value) -> Result<Value, RpcError> {
+    tauri::async_runtime::spawn_blocking(move || invoke_service(command_name, payload))
+        .await
+        .map_err(|_| RpcError {
+            code: "INTERNAL_ERROR".into(),
+            message: "The local search worker could not complete the request.".into(),
+        })?
+}
+
 fn uuid() -> String {
     // Request IDs are correlation labels, not credentials or authorization tokens.
     format!("{}-{}", std::process::id(), std::time::SystemTime::now()
@@ -198,18 +214,18 @@ fn uuid() -> String {
 }
 
 #[tauri::command]
-fn service_health() -> Result<Value, RpcError> {
-    invoke_service("health", Value::Object(Default::default()))
+async fn service_health() -> Result<Value, RpcError> {
+    invoke_service_async("health", Value::Object(Default::default())).await
 }
 
 #[tauri::command]
-fn search(request: Value) -> Result<Value, RpcError> {
-    invoke_service("search", request)
+async fn search(request: Value) -> Result<Value, RpcError> {
+    invoke_service_async("search", request).await
 }
 
 #[tauri::command]
-fn taxonomy() -> Result<Value, RpcError> {
-    invoke_service("taxonomy", Value::Object(Default::default()))
+async fn taxonomy() -> Result<Value, RpcError> {
+    invoke_service_async("taxonomy", Value::Object(Default::default())).await
 }
 
 pub fn run() {
@@ -223,4 +239,47 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running ResearchOS desktop");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::invoke_service;
+    use serde_json::json;
+    use std::path::Path;
+
+    #[test]
+    fn stdio_health_taxonomy_and_search_use_real_local_service() {
+        let configured_db = std::env::var("RESEARCHOS_DB_PATH")
+            .expect("set RESEARCHOS_DB_PATH to a disposable local test database");
+        assert!(Path::new(&configured_db).is_absolute());
+
+        let health = invoke_service("health", json!({})).expect("health RPC should succeed");
+        assert_eq!(health["status"], "ready");
+        assert_eq!(health["offline"], true);
+        assert_eq!(health["paper_count"], 0);
+
+        let taxonomy = invoke_service("taxonomy", json!({})).expect("taxonomy RPC should succeed");
+        assert_eq!(taxonomy["tags"].as_array().map(Vec::len), Some(0));
+
+        let search = invoke_service(
+            "search",
+            json!({
+                "query": "desktop-stdio-smoke-no-match-7f2c",
+                "mode": "STRICT",
+                "scope": "LOCAL_ONLY",
+                "hard_filters": {
+                    "eligibility": ["unknown"],
+                    "review_state": ["discovered", "abstract-screened", "fulltext-indexed", "manually-verified"],
+                    "facets": [],
+                    "exclude_paper_ids": []
+                },
+                "limit": 5,
+                "cursor": null
+            }),
+        )
+        .expect("search RPC should succeed");
+        assert_eq!(search["total"], 0);
+        assert_eq!(search["results"].as_array().map(Vec::len), Some(0));
+        assert!(search["index_version"].is_string());
+    }
 }
