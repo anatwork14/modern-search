@@ -1,0 +1,188 @@
+{
+  "schema_version": "0.1-draft",
+  "note": "Query acceptance fixtures, not executed tests or actual retrieved results. gold relevance judgments to be created by human review.",
+  "cases": [
+    {
+      "id": "Q-ATTENTION-INFERENCE",
+      "user_query": "How can attention reduce prefill computation, decoding latency and KV cache memory without reducing model quality?",
+      "mode": "BROAD",
+      "locale": "en",
+      "scope": "LOCAL_ONLY",
+      "hard_facets": [
+        {
+          "namespace": "field",
+          "operator": "ANY",
+          "tags": [
+            "field/large-language-models"
+          ]
+        }
+      ],
+      "soft_terms": [
+        "FlashAttention",
+        "GQA",
+        "MQA",
+        "KV-cache compression",
+        "heavy hitters",
+        "SnapKV",
+        "long context"
+      ],
+      "expected_groups": [
+        "IO-aware kernels",
+        "KV-head sharing",
+        "KV retention or eviction",
+        "Sparse/long-context attention",
+        "Serving and memory management"
+      ],
+      "assertions": [
+        "distinguish PagedAttention from FlashAttention",
+        "do not invent quality metrics"
+      ]
+    },
+    {
+      "id": "Q-ATTENTION-FL",
+      "user_query": "Federated learning using attention for adaptive client aggregation and personalization",
+      "mode": "BRIDGE",
+      "locale": "en",
+      "scope": "LOCAL_ONLY",
+      "soft_terms": [
+        "FedAMP",
+        "attention-weighted aggregation",
+        "FedALA",
+        "non-IID",
+        "personalized federated learning"
+      ],
+      "expected_groups": [
+        "Cross-client attention aggregation",
+        "Attention inside local model",
+        "Adaptive aggregation without required attention",
+        "IoT/IDS applications"
+      ],
+      "assertions": [
+        "FedALA not automatically labeled attention",
+        "paper mentioning attention is not proof method used"
+      ]
+    },
+    {
+      "id": "Q-ATTENTION-FL-IOT-IDS",
+      "user_query": "Attention-based federated learning for IoT intrusion detection in heterogeneous clients",
+      "mode": "BRIDGE",
+      "locale": "en",
+      "scope": "LOCAL_ONLY",
+      "soft_terms": [
+        "client heterogeneity",
+        "non-IID",
+        "graph attention",
+        "network intrusion detection"
+      ],
+      "expected_groups": [
+        "FL aggregation attention",
+        "IDS classifier attention",
+        "Verified combined FL+attention+IDS"
+      ],
+      "assertions": [
+        "if strict combined intersection empty show zero",
+        "bridge suggestions labeled unverified"
+      ]
+    },
+    {
+      "id": "Q-STRICT-FACETS",
+      "user_query": "Personalized federated learning with FedAMP on non-IID data",
+      "mode": "STRICT",
+      "locale": "en",
+      "scope": "LOCAL_ONLY",
+      "hard_facets": [
+        {
+          "namespace": "field",
+          "operator": "ANY",
+          "tags": [
+            "field/federated-learning"
+          ]
+        },
+        {
+          "namespace": "method",
+          "operator": "ANY",
+          "tags": [
+            "method/fedamp"
+          ]
+        },
+        {
+          "namespace": "data",
+          "operator": "ANY",
+          "tags": [
+            "data/non-iid"
+          ]
+        }
+      ],
+      "assertions": [
+        "filters cannot silently relax",
+        "exclude unverified tags if verified-only selected"
+      ]
+    },
+    {
+      "id": "Q-VIETNAMESE",
+      "user_query": "Tìm bài báo tối ưu bộ nhớ KV cache và thời gian sinh token của LLM",
+      "mode": "BROAD",
+      "locale": "vi",
+      "scope": "LOCAL_ONLY",
+      "soft_terms": [
+        "cache compression",
+        "decoding latency",
+        "KV eviction"
+      ],
+      "assertions": [
+        "cross-lingual recall measured independently",
+        "source quotes preserve original language"
+      ]
+    },
+    {
+      "id": "Q-EXACT-DOI",
+      "user_query": "10.1145/3600006.3613165",
+      "mode": "STRICT",
+      "locale": "en",
+      "scope": "LOCAL_ONLY",
+      "assertions": [
+        "direct identifier lookup preferred",
+        "no fuzzy collision"
+      ]
+    },
+    {
+      "id": "Q-IMPOSSIBLE",
+      "user_query": "An impossible conjunction of selected confirmed tags",
+      "mode": "STRICT",
+      "locale": "en",
+      "scope": "LOCAL_ONLY",
+      "hard_facets": [
+        {
+          "namespace": "field",
+          "operator": "ALL",
+          "tags": [
+            "field/federated-learning",
+            "field/large-language-models"
+          ]
+        }
+      ],
+      "assertions": [
+        "zero matches accepted",
+        "do not remove filters without approval"
+      ]
+    },
+    {
+      "id": "Q-ANALOGY",
+      "user_query": "Can learned importance in attention KV retention inspire trustworthy federated client selection?",
+      "mode": "BRIDGE",
+      "locale": "en",
+      "scope": "LOCAL_ONLY",
+      "soft_terms": [
+        "importance scoring",
+        "KV token selection",
+        "client selection",
+        "personalization",
+        "distribution shift"
+      ],
+      "assertions": [
+        "analogy not equivalence",
+        "proposals clearly marked hypotheses"
+      ]
+    }
+  ]
+}
