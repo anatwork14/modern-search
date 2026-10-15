@@ -33,6 +33,18 @@ jobs:
       - name: Stdio integration tests
         run: python -m unittest discover -s tests/integration -v
 
+  acquisition:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install isolated PDF parser dependency
+        run: python -m pip install --disable-pip-version-check -r backend/acquisition-requirements.txt
+      - name: Acquisition, identity, and network-boundary tests
+        run: python -m unittest discover -s tests/acquisition -v
+
   desktop:
     runs-on: macos-14
     steps:
