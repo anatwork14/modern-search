@@ -1,0 +1,8 @@
+# Optional, bounded runtime used by the EmbeddingGemma 2 adapter.
+torch==2.14.1
+torchvision==0.29.1
+transformers==5.19.0
+sentence-transformers==6.1.0
+safetensors==0.8.0
+huggingface-hub==1.33.0
+Pillow==12.3.0

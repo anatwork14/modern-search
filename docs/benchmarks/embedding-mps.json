@@ -1,0 +1,54 @@
+{
+  "status": "PASS",
+  "python": "3.11.16",
+  "torch": "2.14.1",
+  "transformers": "5.19.0",
+  "sentence_transformers": "6.1.0",
+  "device": "mps:0",
+  "mps_available": true,
+  "load_seconds": 7.852971625048667,
+  "warmup_calls": 2,
+  "repeats_per_route": 3,
+  "query": {
+    "dimension": 768,
+    "l2_norm": 1.0,
+    "samples_seconds": [
+      0.03045508312061429,
+      0.031478292075917125,
+      0.027194874826818705
+    ],
+    "p50_seconds": 0.03045508312061429,
+    "p95_nearest_rank_seconds": 0.031478292075917125
+  },
+  "document": {
+    "dimension": 768,
+    "l2_norm": 0.9999999999999994,
+    "samples_seconds": [
+      0.026409542188048363,
+      0.025241833180189133,
+      0.026049084030091763
+    ],
+    "p50_seconds": 0.026049084030091763,
+    "p95_nearest_rank_seconds": 0.026409542188048363
+  },
+  "peak_rss_bytes": 1088438272,
+  "manifest": {
+    "model_id": "google/embeddinggemma-2",
+    "model_revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
+    "license": "apache-2.0",
+    "tokenizer": "google/embeddinggemma-2@914f7f89142e33e77833254d9c9b90c3cef7303b",
+    "prompt_version": {
+      "query": "embeddinggemma2-searchquery-v1",
+      "document": "embeddinggemma2-titled-document-v1"
+    },
+    "query_template": "task: search result | query: {query}",
+    "document_template": "title: {title} | text: {text}",
+    "dimension": 768,
+    "normalized": true,
+    "normalization": "l2-float32",
+    "corpus_revision": "smoke-fixture-v1",
+    "modalities": [
+      "text"
+    ]
+  }
+}

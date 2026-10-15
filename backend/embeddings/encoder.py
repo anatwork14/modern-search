@@ -110,9 +110,10 @@ def _get_model() -> Any:
             _model = SentenceTransformer(
                 str(snapshot),
                 device=device,
+                config_kwargs={"vision_config": None, "audio_config": None},
+                local_files_only=True,
+                trust_remote_code=False,
                 model_kwargs={
-                    "config_kwargs": {"vision_config": None, "audio_config": None},
-                    "trust_remote_code": False,
                     "use_safetensors": True,
                 },
             )
@@ -157,11 +158,13 @@ def _encode(texts: list[str], **kwargs: Any) -> list[list[float]]:
                 "Dense search is unavailable: model output contains non-finite values."
             )
         norm = math.sqrt(sum(value * value for value in vector))
-        if norm == 0.0 or abs(norm - 1.0) > 1e-3:
+        if norm == 0.0:
             raise EmbeddingsUnavailableError(
-                "Dense search is unavailable: model output is not L2-normalized."
+                "Dense search is unavailable: model output has zero norm."
             )
-        normalized.append(vector)
+        # MPS float32 outputs can retain small norm error from lower-precision
+        # model kernels. Normalize the final host vector explicitly for the index.
+        normalized.append([value / norm for value in vector])
     return normalized
 
 

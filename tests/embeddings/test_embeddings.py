@@ -1,5 +1,8 @@
 import unittest
-from unittest.mock import patch
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 from backend.embeddings import (
     MODEL_ID,
@@ -37,6 +40,31 @@ class EmbeddingContractTests(unittest.TestCase):
             with self.assertRaises(EmbeddingsUnavailableError) as caught:
                 encode_query("test query")
         self.assertEqual(caught.exception.code, "MODEL_UNAVAILABLE")
+
+    def test_model_constructor_uses_offline_top_level_text_only_options(self):
+        constructor = Mock(return_value=object())
+        fake_torch = SimpleNamespace(
+            backends=SimpleNamespace(mps=SimpleNamespace(is_available=lambda: False))
+        )
+        fake_sentence_transformers = SimpleNamespace(SentenceTransformer=constructor)
+        with (
+            patch.object(encoder, "_model", None),
+            patch.object(encoder, "_resolve_cached_snapshot", return_value=Path("/cached/model")),
+            patch.dict(
+                sys.modules,
+                {"torch": fake_torch, "sentence_transformers": fake_sentence_transformers},
+            ),
+            patch.dict("os.environ", {"RESEARCHOS_EMBEDDING_DEVICE": "cpu"}),
+        ):
+            encoder._get_model()
+        constructor.assert_called_once_with(
+            "/cached/model",
+            device="cpu",
+            config_kwargs={"vision_config": None, "audio_config": None},
+            local_files_only=True,
+            trust_remote_code=False,
+            model_kwargs={"use_safetensors": True},
+        )
 
     def test_empty_documents_need_no_model(self):
         self.assertEqual(encode_titled_documents([]), [])
@@ -98,6 +126,20 @@ class EmbeddingContractTests(unittest.TestCase):
             with patch.object(encoder, "_get_model", return_value=FakeModel(vector)):
                 with self.assertRaises(EmbeddingsUnavailableError):
                     encode_query("query")
+
+    def test_finite_model_output_is_explicitly_l2_normalized(self):
+        class FakeVectors:
+            def tolist(self):
+                return [[2.0] + [0.0] * 767]
+
+        class FakeModel:
+            def encode(self, texts, **kwargs):
+                return FakeVectors()
+
+        with patch.object(encoder, "_get_model", return_value=FakeModel()):
+            result = encode_query("query")
+        self.assertAlmostEqual(sum(value * value for value in result) ** 0.5, 1.0)
+        self.assertEqual(result[0], 1.0)
 
     def test_vector_index_requires_matching_model_and_corpus(self):
         manifest = make_index_manifest(corpus_revision="fixture-v1")

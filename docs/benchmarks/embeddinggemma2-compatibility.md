@@ -40,14 +40,29 @@ available, and SentenceTransformer exposes the `model_kwargs` argument used for
 selective encoder configuration. No global or repository dependencies were
 installed.
 
-The pinned model weights have **not** been downloaded and no model inference
-has been run. The compatibility check above verifies source and installed
-runtime APIs, but selective text-only weight loading and actual CPU/MPS
-embedding behavior remain unverified. No throughput, latency, memory, or
-embedding quality measurement is reported.
+The complete pinned snapshot was downloaded explicitly outside Git. After fixing
+SentenceTransformer's top-level config_kwargs and installing the processor's Pillow
+and torchvision dependencies, real offline MPS and CPU adapter inference passed.
+The adapter explicitly normalizes finite nonzero host vectors after model inference.
+Raw reproducible three-sample smoke reports are embedding-mps.json and
+embedding-cpu.json in this directory; these are synthetic compatibility inputs,
+not a relevance benchmark or a representative performance study.
 
-No local throughput, latency, peak-memory, or quality benchmark should be
-claimed until the pinned model is loaded and measured with a recorded command.
+Executed in a contained Python 3.11 environment:
+
+```sh
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 RESEARCHOS_EMBEDDING_DEVICE=mps python -m backend.embeddings.benchmark --repeat 3
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 RESEARCHOS_EMBEDDING_DEVICE=cpu python -m backend.embeddings.benchmark --repeat 3
+```
+
+A standard-library exact cosine index stores title and available source abstract
+vectors with the pinned manifest and a complete catalog digest. Builds replace the
+index atomically; failed builds preserve the previous file. Corpus/model/prompt/
+dimension/normalization mismatch blocks dense access. The small-corpus scan returns
+all ranked IDs before hard filtering; no labeled retrieval-quality claim is made.
+
+Workers stopped when their account usage limit was reached; the lead completed
+these runtime corrections and executed the compatibility probes.
 
 ## Sources
 
