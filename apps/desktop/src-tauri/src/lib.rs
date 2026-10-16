@@ -41,16 +41,17 @@ struct RpcResponse {
 static BUNDLED_RESOURCE_ROOT: OnceLock<PathBuf> = OnceLock::new();
 
 fn repository_root() -> Result<PathBuf, String> {
-    if !cfg!(debug_assertions) {
-        let resources = BUNDLED_RESOURCE_ROOT.get()
-            .ok_or_else(|| "Bundled backend resources are not initialized".to_string())?;
-        if !resources.join("backend/service.py").is_file() {
-            return Err("The packaged search service is missing from Resources".into());
+    // Tauri setup prefers the bundled backend even in a debug .app. Rust unit
+    // tests have no AppHandle, so they explicitly use the source checkout.
+    if let Some(resources) = BUNDLED_RESOURCE_ROOT.get() {
+        if resources.join("backend/service.py").is_file() {
+            return Ok(resources.clone());
         }
-        return Ok(resources.clone());
+        return Err("The packaged search service is missing from Resources".into());
     }
-    // Development uses the checked-out source tree. Production uses the
-    // bundled, read-only backend modules, never UI-provided executable paths.
+    if !cfg!(debug_assertions) {
+        return Err("Bundled backend resources are not initialized".into());
+    }
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let root = manifest.parent().and_then(|p| p.parent()).and_then(|p| p.parent())
         .ok_or_else(|| "Could not locate the repository root".to_string())?;
@@ -273,12 +274,17 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![service_health, search, taxonomy])
         .setup(|app| {
-            if !cfg!(debug_assertions) {
-                let resources = app.path().resource_dir()?;
-                if !resources.join("backend/service.py").is_file() {
+            // A bundled .app (including debug bundles) always searches its own
+            // resources. Only dev builds with no copied resources fall back to
+            // the source checkout, avoiding accidental local path dependency.
+            if let Ok(resources) = app.path().resource_dir() {
+                if resources.join("backend/service.py").is_file() {
+                    let _ = BUNDLED_RESOURCE_ROOT.set(resources);
+                } else if !cfg!(debug_assertions) {
                     return Err("Packaged Python search backend is missing".into());
                 }
-                let _ = BUNDLED_RESOURCE_ROOT.set(resources);
+            } else if !cfg!(debug_assertions) {
+                return Err("Could not locate packaged search resources".into());
             }
             if let Some(window) = app.get_webview_window("main") {
                 window.set_title("ResearchOS")?;
