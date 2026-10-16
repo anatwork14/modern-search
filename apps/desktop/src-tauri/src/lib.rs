@@ -3,6 +3,7 @@ use serde_json::Value;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{mpsc, Mutex, OnceLock};
+use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 use tauri::Manager;
@@ -37,24 +38,27 @@ struct RpcResponse {
     error: Option<RpcError>,
 }
 
-fn repository_root() -> Result<std::path::PathBuf, String> {
-    // src-tauri lives at <repo>/apps/desktop/src-tauri. In a packaged build,
-    // resources must be bundled explicitly; never accept a path from the UI.
+static BUNDLED_RESOURCE_ROOT: OnceLock<PathBuf> = OnceLock::new();
+
+fn repository_root() -> Result<PathBuf, String> {
     if !cfg!(debug_assertions) {
-        return Err("The local service is not bundled in this development build.".into());
+        let resources = BUNDLED_RESOURCE_ROOT.get()
+            .ok_or_else(|| "Bundled backend resources are not initialized".to_string())?;
+        if !resources.join("backend/service.py").is_file() {
+            return Err("The packaged search service is missing from Resources".into());
+        }
+        return Ok(resources.clone());
     }
-    let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = manifest
-        .parent()
-        .and_then(|p| p.parent())
-        .and_then(|p| p.parent())
-        .ok_or_else(|| "Could not locate the application source root.".to_string())?;
-    if !root.join("backend").is_dir() {
-        return Err("The local search service is not available in this checkout yet.".into());
+    // Development uses the checked-out source tree. Production uses the
+    // bundled, read-only backend modules, never UI-provided executable paths.
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.parent().and_then(|p| p.parent()).and_then(|p| p.parent())
+        .ok_or_else(|| "Could not locate the repository root".to_string())?;
+    if !root.join("backend/service.py").is_file() {
+        return Err("Local search backend source is missing".into());
     }
     Ok(root.to_path_buf())
 }
-
 
 fn internal_error(message: &str) -> RpcError {
     RpcError { code: "INTERNAL_ERROR".into(), message: message.into() }
@@ -248,6 +252,13 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![service_health, search, taxonomy])
         .setup(|app| {
+            if !cfg!(debug_assertions) {
+                let resources = app.path().resource_dir()?;
+                if !resources.join("backend/service.py").is_file() {
+                    return Err("Packaged Python search backend is missing".into());
+                }
+                let _ = BUNDLED_RESOURCE_ROOT.set(resources);
+            }
             if let Some(window) = app.get_webview_window("main") {
                 window.set_title("ResearchOS")?;
             }
