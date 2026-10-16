@@ -49,7 +49,7 @@ describe("ResearchOS quick-search launcher", () => {
     await user.type(screen.getByRole("searchbox"), "attention{Enter}");
     expect(await screen.findByText("DEMO-001")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Search options" }));
-    expect(screen.queryByText("DEMO-001")).toBeInTheDocument();
+    expect(screen.queryByText("DEMO-001")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /add tag facet/i }));
     expect(screen.queryByText("DEMO-001")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /add tag facet/i }));
