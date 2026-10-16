@@ -57,7 +57,7 @@ class IpcSchemaTests(unittest.TestCase):
     def test_get_paper_metadata_contract_rejects_extra_fields_and_controls(self):
         base={"version":1,"id":"paper","command":"get_paper","payload":{"paper_id":"P-abcdef1234"}}
         self.assertFalse(list(self.validator.iter_errors(base)))
-        for payload in ({"paper_id":1},{"paper_id":""},{"paper_id":"bad\\nname"},
+        for payload in ({"paper_id":1},{"paper_id":""},{"paper_id":"bad\nname"},
                         {"paper_id":"P-abcdef1234","filesystem_path":"/private/db"}):
             candidate={**base,"payload":payload}
             self.assertTrue(list(self.validator.iter_errors(candidate)))
