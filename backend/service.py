@@ -92,9 +92,9 @@ def main() -> int:
             if len(raw) > MAX_REQUEST_BYTES:
                 # Drain the remainder of an overlong line before parsing the
                 # next request; do not accidentally interpret its tail as RPC.
-                while not raw.endswith(b"\\n"):
+                while not raw.endswith(b"\n"):
                     raw = sys.stdin.buffer.readline(MAX_REQUEST_BYTES + 1)
-                    if not raw or raw.endswith(b"\\n"):
+                    if not raw or raw.endswith(b"\n"):
                         break
                 raise ValueError("Request exceeds maximum size")
             request = json.loads(raw)
