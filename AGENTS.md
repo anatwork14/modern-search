@@ -78,3 +78,7 @@ Status protocol: record EX-* work only under the extension backlog in progress.m
 ## First-run parallel kickoff
 
 For multi-agent implementation, **read [START_HERE.md](START_HERE.md)** and follow its five isolated worktree/worker contracts, interface freeze, CI and integration rules. The kickoff document describes how to spawn workers; it does **not** imply any workers are already running. Lead agent owns progress.md updates, not parallel workers. Always check branch and PR #1 status before creating a worktree; main may still have only README and LICENSE.
+
+## Research workspace IPC compatibility (PR #16)
+
+`get_paper` is an optional **read-only metadata lookup** in the local stdio v1 protocol. It validates exactly one Paper_ID and returns an existing record without semantic guessing. Unknown ID -> found:false. It DOES NOT implement `get_evidence` or prove that source PDF/page was read; source-asserted venue fields remain unverified until separately checked. Keep lookup and full catalog export serialization identical, test source identity, and never return arbitrary filesystem/database paths. This feature remains branch-scoped until PR review/merge.

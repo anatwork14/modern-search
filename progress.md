@@ -153,3 +153,11 @@ This is an additive Drive transfer and an independently audited icon implementat
 | `/root` — `integration/researchos-mvp` | IN PROGRESS | PR #12 remains a draft to `main`; lead tracks integration and campaign completion. The final all-paper manifest awaits terminal acquisition reconciliation. |
 
 Campaign totals are not final. The read-only catalog snapshot contains 2,478 candidates, 1,580 with no direct PDF URL, and 184 JMLR masthead-prefix titles (151 without a catalog article-title tail). At the checkpoint, 35 uploaded PDFs are JMLR papers; 23 masthead-repair titles were verified against official JMLR landing pages and exact PDF links. Source qualification (SJR Q1/Q2 or CORE A/A*) remains a separate, unvalidated filter. The ZIP contained no full-text PDF set. The external uploads do not change the app's local-PDF or qualification status, and source catalog/database state remains unchanged. `unavailable` describes attempted endpoint responses, not proof a paper is globally unavailable.
+
+## 2026-10-16 — Research workspace read-only Paper_ID bridge (PR #16)
+
+- **Branch state:** draft PR, not merged into main at this ledger update.
+- **Implemented in branch:** `get_paper` command in local stdio v1 with strict JSON schema and before-DB request validation; indexed exact-ID lookup, shared serializer and explicit metadata-only evidence label. No `get_evidence`.
+- **Tests added:** schema negative cases, empty and populated stdio IPC, indexed persistence lookup parity. GitHub Actions should be checked against current HEAD; never treat earlier runs as proof of later commits.
+- **Remaining:** review and merge, real private-catalog smoke tests, performance measurement under repeated agent Paper_ID lookups, source-verified page evidence from separate PDF pipeline.
+- Companion: https://github.com/anatwork14/research/pull/3 ; bridge PR: https://github.com/anatwork14/modern-search/pull/16 .
