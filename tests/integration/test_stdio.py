@@ -64,7 +64,7 @@ class StdioTests(unittest.TestCase):
                     (5, "health", {}),
                 ):
                     request = {"version": 1, "id": str(idx), "command": command, "payload": payload}
-                    process.stdin.write((json.dumps(request) + "\\n").encode())
+                    process.stdin.write((json.dumps(request) + "\n").encode())
                     process.stdin.flush()
                     readable, _, _ = select.select([process.stdout], [], [], 10)
                     self.assertTrue(readable, "Worker failed to flush a response before stdin EOF")
@@ -84,7 +84,7 @@ class StdioTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "catalog.sqlite3"
             good = json.dumps({"version": 1, "id": "after", "command": "health", "payload": {}})
-            raw = b"x" * (1_048_576 + 200) + b"\\n" + good.encode() + b"\\n"
+            raw = b"x" * (1_048_576 + 200) + b"\n" + good.encode() + b"\n"
             result = subprocess.run([sys.executable, "-m", "backend.service"], input=raw,
                                     capture_output=True, timeout=10,
                                     env={**os.environ, "RESEARCHOS_DB_PATH": str(path)})
