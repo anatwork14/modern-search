@@ -60,7 +60,7 @@
 .add-facet { width: 100%; padding: 11px; border: 1px dashed #bdc7d3; border-radius: 11px; background: #f9fbff; color: #2b668f; cursor: pointer; }
 .filter-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 25px; border-top: 1px solid #eaeced; color: #767b83; font-size: 11px; }
 .filter-bar button,.empty-state button { border: 0; border-radius: 10px; background: #e2f1ff; color: #174c72; padding: 10px 17px; font-weight: 600; }
-.results-panel { max-height: calc(100vh - 304px); overflow: auto; }
+.results-panel { max-height: calc(100vh - 358px); overflow: auto; }
 .result-heading { position: sticky; z-index: 2; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 21px 28px 16px; border-bottom: 1px solid #eceef0; background: #fff; }
 .eyebrow { margin: 0 0 6px; color: #7a818b; font-size: 10px; font-weight: 700; letter-spacing: .07em; }
 .result-heading h2 { margin: 0; color: #242730; font-size: 19px; font-weight: 650; }
