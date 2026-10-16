@@ -67,6 +67,17 @@ describe("ResearchOS quick-search launcher", () => {
     expect(screen.getByLabelText("Search mode")).toHaveValue("BROAD");
   });
 
+  it("requires an explicit opt-in before searching unknown paper candidates", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByRole("searchbox"), "no-fictional-paper-with-this-id{Enter}");
+    expect(await screen.findByText("No papers matched these constraints")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Search unknown candidates instead" }));
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    expect(screen.getByLabelText("Publication eligibility")).toHaveValue("unknown");
+    expect(screen.getByLabelText("Search mode")).toHaveValue("STRICT");
+  });
+
   it("supports keyboard focus and closing advanced options", async () => {
     const user = userEvent.setup();
     render(<App />);

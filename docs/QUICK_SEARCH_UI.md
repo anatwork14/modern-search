@@ -13,7 +13,7 @@ This is a **search launcher**, not a chatbot. The macOS app opens as a small rou
 
 ## Technical notes
 
-Files: `apps/desktop/src/App.tsx`, `App.css`, `index.css`, `App.test.tsx`, `src-tauri/tauri.conf.json`, and `src-tauri/capabilities/default.json`. No retrieval contract, schema, or backend behavior changed.
+Files: `apps/desktop/src/App.tsx`, `App.css`, `index.css`, `App.test.tsx`, `src-tauri/tauri.conf.json`, and `src-tauri/capabilities/default.json`. The public search RPC/schema remains unchanged. Internally, worker lifetime and prepared FTS caching are optimized; app-level request validation and eligibility semantics are preserved.
 
 Native window requires Tauri window permissions for set-size, center, close and drag. The transparent, undecorated window uses an explicit draggable strip and Close button; because the app has no global shortcut yet, users reopen it via the Dock/launcher.
 
@@ -22,11 +22,11 @@ Native window requires Tauri window permissions for set-size, center, close and 
 - Run `cd apps/desktop && npm ci && npm test && npm run lint && npm run build`.
 - Run `./scripts/check.sh` from the repository root with the documented Python environment.
 - On macOS, manually verify rounded transparency and native drag/close, expand/collapse, keyboard-only input, on-device real search, and usability on a small display.
-- Measure search latency (including process startup) **separately**. This PR reduces visual friction; it does not claim measured retrieval speed gains. The Python worker is still launched per RPC.
+- Measure search latency (including process startup) with `scripts/benchmark_search.py` on a real imported catalog. This PR does not claim device-independent speedups.
 
 ## Follow-up
 
-A global reveal shortcut (e.g. Option+Space), tray/menu bar control, and a resident search service are separate design/performance tasks requiring independent platform and latency testing.
+A global reveal shortcut (e.g. Option+Space), tray/menu bar control, standalone Python runtime and signing/notarization are separate distribution-level tasks requiring dedicated platform testing. The local stdio worker is already persistent inside the running desktop app.
 
 ## Release and performance notes (2026-10-16)
 
