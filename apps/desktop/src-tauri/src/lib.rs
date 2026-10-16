@@ -60,6 +60,28 @@ fn repository_root() -> Result<PathBuf, String> {
     Ok(root.to_path_buf())
 }
 
+fn python_executable() -> PathBuf {
+    if let Ok(configured) = std::env::var("MODERN_SEARCH_PYTHON") {
+        if !configured.is_empty() {
+            return PathBuf::from(configured);
+        }
+    }
+    // Finder-launched macOS apps often do not inherit the Homebrew PATH.
+    // Prefer explicitly installed host Python before the system fallback.
+    for candidate in [
+        "/opt/homebrew/bin/python3",
+        "/usr/local/bin/python3",
+        "/opt/homebrew/bin/python3.11",
+        "/usr/local/bin/python3.11",
+        "/usr/bin/python3",
+    ] {
+        if PathBuf::from(candidate).is_file() {
+            return PathBuf::from(candidate);
+        }
+    }
+    PathBuf::from("python3")
+}
+
 fn internal_error(message: &str) -> RpcError {
     RpcError { code: "INTERNAL_ERROR".into(), message: message.into() }
 }
@@ -101,8 +123,7 @@ struct Worker {
 impl Worker {
     fn spawn() -> Result<Self, RpcError> {
         let root = repository_root().map_err(|message| internal_error(&message))?;
-        let python = std::env::var("MODERN_SEARCH_PYTHON").unwrap_or_else(|_| "python3".into());
-        let mut child = Command::new(python)
+        let mut child = Command::new(python_executable())
             .arg("-m")
             .arg("backend.service")
             .current_dir(&root)

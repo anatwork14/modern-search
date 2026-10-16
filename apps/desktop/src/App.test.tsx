@@ -11,7 +11,7 @@ describe("ResearchOS quick-search launcher", () => {
     expect(screen.getByRole("region", { name: /researchos quick search/i })).toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: /research question or exact method/i })).toBeInTheDocument();
     expect(within(screen.getByRole("region", { name: /researchos quick search/i })).getByRole("button", { name: "Search" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /search mode: broad/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /search mode: fast lexical/i })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Demo mode · fictional sample records");
     expect(screen.queryByRole("heading", { name: "Your results" })).not.toBeInTheDocument();
     expect(screen.queryByText("DEMO-001")).not.toBeInTheDocument();
@@ -60,10 +60,11 @@ describe("ResearchOS quick-search launcher", () => {
   it("switches retrieval mode without silently broadening eligibility", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: /search mode: broad/i }));
-    expect(screen.getByRole("button", { name: /search mode: strict/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /search mode: fast lexical/i }));
+    expect(screen.getByRole("button", { name: /search mode: hybrid/i })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Filters" }));
     expect(screen.getByLabelText("Publication eligibility")).toHaveValue("verified-qualified");
+    expect(screen.getByLabelText("Search mode")).toHaveValue("BROAD");
   });
 
   it("supports keyboard focus and closing advanced options", async () => {

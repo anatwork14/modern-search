@@ -99,7 +99,7 @@ function PaperCard({ paper }: { paper: SearchResult }) {
 function App() {
   const desktop = useMemo(() => isDesktopRuntime(), []);
   const [source, setSource] = useState<"mock" | "local">(desktop ? "local" : "mock");
-  const [mode, setMode] = useState<SearchMode>("BROAD");
+  const [mode, setMode] = useState<SearchMode>("STRICT");
   const [eligibility, setEligibility] = useState("verified-qualified");
   const [query, setQuery] = useState("");
   const [facets, setFacets] = useState<Array<{
@@ -189,7 +189,7 @@ function App() {
     })();
   }, [desktop, filtersOpen, hasSearched]);
 
-  const runSearch = async (event?: FormEvent, cursor: string | null = null) => {
+  const runSearch = async (event?: FormEvent, cursor: string | null = null, eligibilityOverride?: string) => {
     event?.preventDefault();
     const incompleteFacet = facets.some((facet) =>
       !facet.namespace.trim() || !facet.tagText.split(",").some((tag) => tag.trim()),
@@ -207,6 +207,7 @@ function App() {
     setHasSearched(true);
     try {
       const request = makeRequest(cursor);
+      if (eligibilityOverride) request.hard_filters.eligibility = [eligibilityOverride];
       const response = source === "mock" ? mockSearch(request) : await searchLocal(request);
       if (searchRunId.current !== runId) return;
       setSearchData((current) => cursor
@@ -262,8 +263,8 @@ function App() {
                 {facets.length > 0 && <span className="facet-count">{facets.length} tag {facets.length === 1 ? "filter" : "filters"}</span>}
               </div>
               <div className="action-group">
-                <button className="mode-button" type="button" aria-label={`Search mode: ${mode === "BROAD" ? "Broad" : "Strict"}. Click to switch`} title="Switch between broad and strict retrieval" onClick={() => { invalidateResults(); setMode((current) => current === "BROAD" ? "STRICT" : "BROAD"); }}>
-                  {mode === "BROAD" ? "Broad" : "Strict"}
+                <button className="mode-button" type="button" aria-label={`Search mode: ${mode === "STRICT" ? "Fast lexical" : "Hybrid"}. Click to switch`} title={mode === "STRICT" ? "Fast strict lexical search" : "Hybrid lexical and available local semantic candidates"} onClick={() => { invalidateResults(); setMode((current) => current === "BROAD" ? "STRICT" : "BROAD"); }}>
+                  {mode === "STRICT" ? "Fast" : "Hybrid"}
                   <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
                 </button>
                 <button className="search-button" type="submit" disabled={busy} aria-label={busy ? "Searching" : "Search"} title="Search (Enter)">
@@ -379,7 +380,9 @@ function App() {
               <div className="empty-state">
                 <h3>No papers matched these constraints</h3>
                 <p>Exact eligibility and tag filters were preserved. {eligibility === "verified-qualified" ? "Your imported papers may still need eligibility review." : "Try a different query or adjust filters."}</p>
-                <button type="button" onClick={() => setFiltersOpen(true)}>Review filters</button>
+                {eligibility === "verified-qualified"
+                  ? <button type="button" onClick={() => { setEligibility("unknown"); void runSearch(undefined, null, "unknown"); }}>Search unknown candidates instead</button>
+                  : <button type="button" onClick={() => setFiltersOpen(true)}>Review filters</button>}
               </div>
             )}
             <div className="paper-list" aria-live="polite" aria-busy={busy}>
