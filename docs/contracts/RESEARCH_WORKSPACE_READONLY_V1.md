@@ -23,3 +23,7 @@ On found, `paper` is the existing exported structured catalog record, including 
 
 ## Consumer (research repository)
 `researchctl paper P-ID` may use this command if installed. Consumers must feature-detect failure rather than assuming every modern-search version supports this.
+
+## Implementation efficiency
+
+The new `get_paper` dispatch calls a parameterized indexed SQLite Paper_ID lookup and only serializes the matching paper's tags, identifiers and venue assertion rows; it does not perform the full-corpus `export_papers` scan required for search. List and lookup share the same serialization helper to prevent schema drift. Latency is NOT benchmarked until a realistic catalog is available.

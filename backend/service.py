@@ -38,21 +38,15 @@ def handle(request: object) -> dict:
             paper_id = payload["paper_id"]
             if not isinstance(paper_id, str) or not 1 <= len(paper_id) <= 128 or any(ord(ch) < 32 or ord(ch) == 127 for ch in paper_id):
                 raise ValueError("Invalid paper_id")
-        from backend.persistence import connect, migrate, export_papers, export_tags
+        from backend.persistence import connect, migrate, export_papers, export_tags, lookup_paper
 
         path = database_path()
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         connection = connect(path)
         try:
             migrate(connection)
-            papers, tags = export_papers(connection), export_tags(connection)
-            if command == "health":
-                data = {"status": "ready", "offline": True, "dense_status": "unavailable",
-                        "index_version": "sqlite-v1", "paper_count": len(papers)}
-            elif command == "taxonomy":
-                data = {"tags": tags}
-            elif command == "get_paper":
-                paper = next((p for p in papers if p["paper_id"] == request["payload"]["paper_id"]), None)
+            if command == "get_paper":
+                paper = lookup_paper(connection, request["payload"]["paper_id"])
                 data = {
                     "found": paper is not None,
                     "paper": paper,
@@ -60,27 +54,34 @@ def handle(request: object) -> dict:
                     "warnings": ["Catalog metadata and source assertions are not verified full-text/page-level evidence"],
                 }
             else:
-                from backend.retrieval import search
-                dense = None
-                warnings = []
-                payload = request["payload"]
-                index_path = Path(os.environ.get("RESEARCHOS_INDEX_PATH", str(path.with_suffix(".dense.json"))))
-                if payload.get("mode", "STRICT") == "BROAD" and isinstance(payload.get("query", ""), str) and payload.get("query", "").strip():
-                    if index_path.is_file():
-                        try:
-                            from backend.vector.index import DenseIndex
-                            dense = DenseIndex(index_path, papers, tags)
-                        except Exception:
-                            warnings.append("Dense index is invalid or out of date; lexical search remains available")
-                    else:
-                        warnings.append("No local dense index is installed; lexical search remains available")
-                data = search(papers, tags, payload, dense=dense)
-                data["warnings"].extend(warnings)
-                by_id = {paper["paper_id"]: paper for paper in papers}
-                for result in data["results"]:
-                    paper = by_id[result["paper_id"]]
-                    result["venue"] = paper.get("venue")
-                    result["venue_evidence"] = paper.get("venue_evidence", [])
+                papers, tags = export_papers(connection), export_tags(connection)
+                if command == "health":
+                    data = {"status": "ready", "offline": True, "dense_status": "unavailable",
+                            "index_version": "sqlite-v1", "paper_count": len(papers)}
+                elif command == "taxonomy":
+                    data = {"tags": tags}
+                else:
+                    from backend.retrieval import search
+                    dense = None
+                    warnings = []
+                    payload = request["payload"]
+                    index_path = Path(os.environ.get("RESEARCHOS_INDEX_PATH", str(path.with_suffix(".dense.json"))))
+                    if payload.get("mode", "STRICT") == "BROAD" and isinstance(payload.get("query", ""), str) and payload.get("query", "").strip():
+                        if index_path.is_file():
+                            try:
+                                from backend.vector.index import DenseIndex
+                                dense = DenseIndex(index_path, papers, tags)
+                            except Exception:
+                                warnings.append("Dense index is invalid or out of date; lexical search remains available")
+                        else:
+                            warnings.append("No local dense index is installed; lexical search remains available")
+                    data = search(papers, tags, payload, dense=dense)
+                    data["warnings"].extend(warnings)
+                    by_id = {paper["paper_id"]: paper for paper in papers}
+                    for result in data["results"]:
+                        paper = by_id[result["paper_id"]]
+                        result["venue"] = paper.get("venue")
+                        result["venue_evidence"] = paper.get("venue_evidence", [])
         finally:
             connection.close()
         return {**envelope, "ok": True, "data": data}

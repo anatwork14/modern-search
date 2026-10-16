@@ -55,35 +55,51 @@ def export_tags(connection: sqlite3.Connection) -> list[dict]:
     return tags
 
 
-def export_papers(connection: sqlite3.Connection) -> list[dict]:
-    """Export papers and their typed tag assertions for the retrieval service."""
-    papers = []
-    rows = connection.execute(
-        "SELECT paper_id, title, abstract, authors_json, publication_year, doi, source_url, "
-        "review_state, eligibility_state, pdf_state, venue_name FROM papers ORDER BY paper_id"
-    )
+_PAPER_SELECT = (
+    "SELECT paper_id, title, abstract, authors_json, publication_year, doi, source_url, "
+    "review_state, eligibility_state, pdf_state, venue_name FROM papers"
+)
+
+def _serialize_paper(connection: sqlite3.Connection, row: sqlite3.Row) -> dict:
+    """One shared serialization path for list and direct indexed identity lookup."""
     import json
+    paper_id = row["paper_id"]
+    tags = [dict(r) for r in connection.execute(
+        "SELECT tag_id, review_state, role FROM paper_tags WHERE paper_id = ? ORDER BY tag_id, role",
+        (paper_id,),
+    )]
+    return {
+        "paper_id": paper_id,
+        "title": row["title"],
+        "abstract": row["abstract"],
+        "authors": json.loads(row["authors_json"]),
+        "year": row["publication_year"],
+        "doi": row["doi"],
+        "source_url": row["source_url"],
+        "review_state": row["review_state"],
+        "eligibility": row["eligibility_state"],
+        "pdf_state": row["pdf_state"],
+        "tags": tags,
+        "venue": row["venue_name"],
+        "venue_evidence": [{**dict(r), "source_asserted": True} for r in connection.execute(
+            "SELECT venue_type,core_rank,sjr_quartile,ranking_system,ranking_year,ranking_category,ranking_source_url,publication_evidence_url "
+            "FROM venue_evidence WHERE paper_id=? ORDER BY source_record_id", (paper_id,))],
+        "identifiers": [r[0] for r in connection.execute(
+            "SELECT normalized_value FROM paper_identifiers WHERE paper_id=? ORDER BY normalized_value", (paper_id,))],
+        "identifier_records": [dict(r) for r in connection.execute(
+            "SELECT kind,normalized_value AS value FROM paper_identifiers WHERE paper_id=? ORDER BY kind,normalized_value", (paper_id,))],
+    }
 
-    for row in rows:
-        tags = [dict(r) for r in connection.execute(
-            "SELECT tag_id, review_state, role FROM paper_tags WHERE paper_id = ? ORDER BY tag_id, role",
-            (row["paper_id"],),
-        )]
-        papers.append({
-            "paper_id": row["paper_id"], "title": row["title"], "abstract": row["abstract"],
-            "authors": json.loads(row["authors_json"]), "year": row["publication_year"],
-            "doi": row["doi"], "source_url": row["source_url"],
-            "review_state": row["review_state"], "eligibility": row["eligibility_state"],
-            "pdf_state": row["pdf_state"], "tags": tags,
-            "venue": row["venue_name"],
-            "venue_evidence": [{**dict(r), "source_asserted": True} for r in connection.execute(
-                "SELECT venue_type,core_rank,sjr_quartile,ranking_system,ranking_year,ranking_category,ranking_source_url,publication_evidence_url FROM venue_evidence WHERE paper_id=? ORDER BY source_record_id", (row["paper_id"],))],
-            "identifiers": [r[0] for r in connection.execute(
-                "SELECT normalized_value FROM paper_identifiers WHERE paper_id=? ORDER BY normalized_value", (row["paper_id"],))],
-            "identifier_records": [dict(r) for r in connection.execute(
-                "SELECT kind,normalized_value AS value FROM paper_identifiers WHERE paper_id=? ORDER BY kind,normalized_value", (row["paper_id"],))],
-        })
-    return papers
+def export_papers(connection: sqlite3.Connection) -> list[dict]:
+    """Export the full catalog for hybrid search (existing retrieval behavior)."""
+    rows = connection.execute(_PAPER_SELECT + " ORDER BY paper_id")
+    return [_serialize_paper(connection, row) for row in rows]
 
+def lookup_paper(connection: sqlite3.Connection, paper_id: str) -> dict | None:
+    """Indexed exact Paper_ID lookup. Never return a fuzzy/guessed identity."""
+    if not isinstance(paper_id, str) or not 1 <= len(paper_id) <= 128:
+        raise ValueError("Invalid Paper_ID")
+    row = connection.execute(_PAPER_SELECT + " WHERE paper_id = ?", (paper_id,)).fetchone()
+    return _serialize_paper(connection, row) if row is not None else None
 
-__all__ = ["connect", "migrate", "export_papers", "export_tags"]
+__all__ = ["connect", "migrate", "export_papers", "export_tags", "lookup_paper"]
