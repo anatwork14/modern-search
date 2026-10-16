@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::io::{Read, Write};
-use std::process::{Command, Stdio};
+use std::io::{BufRead, BufReader, Write};
+use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::{mpsc, Mutex, OnceLock};
 use std::thread;
 use std::time::Duration;
 use tauri::Manager;
-use wait_timeout::ChildExt;
 
 const SERVICE_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_RESPONSE_BYTES: u64 = 8 * 1024 * 1024;
@@ -55,144 +55,160 @@ fn repository_root() -> Result<std::path::PathBuf, String> {
     Ok(root.to_path_buf())
 }
 
+
+fn internal_error(message: &str) -> RpcError {
+    RpcError { code: "INTERNAL_ERROR".into(), message: message.into() }
+}
+
+/// Read exactly one newline-delimited response without allowing an unbounded
+/// stdout allocation. A malformed or overlarge frame invalidates this worker.
+fn read_bounded_frame(reader: &mut impl BufRead) -> Result<Option<Vec<u8>>, String> {
+    let mut frame = Vec::new();
+    loop {
+        let available = reader.fill_buf().map_err(|_| "Worker response read failed".to_string())?;
+        if available.is_empty() {
+            return if frame.is_empty() {
+                Ok(None)
+            } else {
+                Err("Worker closed an incomplete response".to_string())
+            };
+        }
+        let newline = available.iter().position(|byte| *byte == b'\n');
+        let take = newline.map_or(available.len(), |index| index + 1);
+        if frame.len().saturating_add(take) > MAX_RESPONSE_BYTES as usize {
+            return Err("Worker response exceeded the size limit".to_string());
+        }
+        frame.extend_from_slice(&available[..take]);
+        reader.consume(take);
+        if newline.is_some() {
+            return Ok(Some(frame));
+        }
+    }
+}
+
+/// Single child owned by the app. The stdio channel is never exposed over a
+/// listening port; child I/O is serialized so response IDs cannot interleave.
+struct Worker {
+    child: Child,
+    stdin: ChildStdin,
+    responses: mpsc::Receiver<Result<Vec<u8>, String>>,
+}
+
+impl Worker {
+    fn spawn() -> Result<Self, RpcError> {
+        let root = repository_root().map_err(|message| internal_error(&message))?;
+        let python = std::env::var("MODERN_SEARCH_PYTHON").unwrap_or_else(|_| "python3".into());
+        let mut child = Command::new(python)
+            .arg("-m")
+            .arg("backend.service")
+            .current_dir(&root)
+            .env("PYTHONPATH", &root)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|_| internal_error("Could not start the local Python service. Check Python 3.11+."))?;
+        let stdin = child.stdin.take().ok_or_else(|| internal_error("Could not open worker input"))?;
+        let stdout = child.stdout.take().ok_or_else(|| internal_error("Could not open worker output"))?;
+        let (sender, receiver) = mpsc::channel();
+        thread::spawn(move || {
+            let mut reader = BufReader::new(stdout);
+            loop {
+                match read_bounded_frame(&mut reader) {
+                    Ok(Some(frame)) => {
+                        if sender.send(Ok(frame)).is_err() {
+                            break;
+                        }
+                    }
+                    Ok(None) => {
+                        let _ = sender.send(Err("Worker exited".to_string()));
+                        break;
+                    }
+                    Err(message) => {
+                        let _ = sender.send(Err(message));
+                        break;
+                    }
+                }
+            }
+        });
+        Ok(Self { child, stdin, responses: receiver })
+    }
+
+    fn exchange(&mut self, request: &[u8]) -> Result<Vec<u8>, RpcError> {
+        if self.child.try_wait().map_err(|_| internal_error("Worker status unavailable"))?.is_some() {
+            return Err(internal_error("Local worker unexpectedly exited"));
+        }
+        self.stdin.write_all(request)
+            .and_then(|_| self.stdin.write_all(b"\n"))
+            .and_then(|_| self.stdin.flush())
+            .map_err(|_| internal_error("Could not send request to the local worker"))?;
+        self.responses.recv_timeout(SERVICE_TIMEOUT)
+            .map_err(|_| internal_error("Local search worker timed out or disconnected"))?
+            .map_err(|_| internal_error("Local search worker sent an invalid response"))
+    }
+}
+
+impl Drop for Worker {
+    fn drop(&mut self) {
+        // On timeout, invalid response or app shutdown, do not leave a
+        // detached process processing private research data.
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+static SERVICE_WORKER: OnceLock<Mutex<Option<Worker>>> = OnceLock::new();
+
 fn invoke_service(command_name: &str, payload: Value) -> Result<Value, RpcError> {
-    let root = repository_root().map_err(|message| RpcError {
-        code: "INTERNAL_ERROR".into(),
-        message,
-    })?;
     let request = RpcRequest {
         version: 1,
         id: format!("desktop-{}", uuid()),
-        command: command_name.to_string(),
+        command: command_name.into(),
         payload,
     };
-    let request_bytes = serde_json::to_vec(&request).map_err(|_| RpcError {
-        code: "INTERNAL_ERROR".into(),
-        message: "Could not encode the local search request.".into(),
-    })?;
+    let request_bytes = serde_json::to_vec(&request)
+        .map_err(|_| internal_error("Could not encode the search request"))?;
     if request_bytes.len() > MAX_REQUEST_BYTES {
         return Err(RpcError {
             code: "INVALID_REQUEST".into(),
-            message: "The local search request exceeded the 1 MiB size limit.".into(),
+            message: "Local search request exceeded the 1 MiB limit".into(),
         });
     }
-    let python = std::env::var("MODERN_SEARCH_PYTHON").unwrap_or_else(|_| "python3".into());
-    let mut child = Command::new(python)
-        .arg("-m")
-        .arg("backend.service")
-        .current_dir(&root)
-        .env("PYTHONPATH", &root)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|_| RpcError {
-            code: "INTERNAL_ERROR".into(),
-            message: "Could not start the local search service. Check Python 3.11+ is installed.".into(),
-        })?;
-    let Some(stdout) = child.stdout.take() else {
-        let _ = child.kill();
-        let _ = child.wait();
-        return Err(RpcError {
-            code: "INTERNAL_ERROR".into(),
-            message: "Could not open the local service response channel.".into(),
-        });
-    };
-    let stdout_reader = thread::spawn(move || {
-        let mut bytes = Vec::new();
-        let mut buffer = [0; 8192];
-        let mut exceeded_limit = false;
-        let mut stdout = stdout;
-        loop {
-            let count = stdout.read(&mut buffer)?;
-            if count == 0 {
-                break;
-            }
-            let remaining = MAX_RESPONSE_BYTES.saturating_sub(bytes.len() as u64) as usize;
-            let retained = count.min(remaining);
-            bytes.extend_from_slice(&buffer[..retained]);
-            exceeded_limit |= retained < count;
-        }
-        Ok::<_, std::io::Error>((bytes, exceeded_limit))
-    });
-    let Some(mut stdin) = child.stdin.take() else {
-        let _ = child.kill();
-        let _ = child.wait();
-        let _ = stdout_reader.join();
-        return Err(RpcError {
-            code: "INTERNAL_ERROR".into(),
-            message: "Could not open the local service request channel.".into(),
-        });
-    };
-    if stdin.write_all(&request_bytes).and_then(|()| stdin.write_all(b"\n")).is_err() {
-        drop(stdin);
-        let _ = child.kill();
-        let _ = child.wait();
-        let _ = stdout_reader.join();
-        return Err(RpcError {
-            code: "INTERNAL_ERROR".into(),
-            message: "Could not send the local search request.".into(),
-        });
-    }
-    drop(stdin);
 
-    let status = match child.wait_timeout(SERVICE_TIMEOUT) {
-        Ok(Some(status)) => status,
-        Ok(None) => {
-            let _ = child.kill();
-            let _ = child.wait();
-            let _ = stdout_reader.join();
-            return Err(RpcError {
-                code: "INTERNAL_ERROR".into(),
-                message: "The local search service timed out after 30 seconds.".into(),
-            });
-        }
-        Err(_) => {
-            let _ = child.kill();
-            let _ = child.wait();
-            let _ = stdout_reader.join();
-            return Err(RpcError {
-                code: "INTERNAL_ERROR".into(),
-                message: "Could not wait for the local search service.".into(),
-            });
+    let mut slot = SERVICE_WORKER
+        .get_or_init(|| Mutex::new(None))
+        .lock()
+        .map_err(|_| internal_error("Local worker synchronization failed"))?;
+    if slot.is_none() {
+        *slot = Some(Worker::spawn()?);
+    }
+    let raw = match slot.as_mut().expect("worker initialized").exchange(&request_bytes) {
+        Ok(raw) => raw,
+        Err(error) => {
+            // Drop/reap unhealthy child now; the NEXT user request will start
+            // a clean worker. Avoid silently retrying an already-sent request.
+            *slot = None;
+            return Err(error);
         }
     };
-    let (response_bytes, response_exceeded_limit) = stdout_reader.join().map_err(|_| RpcError {
-        code: "INTERNAL_ERROR".into(),
-        message: "The local search response channel failed.".into(),
-    })?.map_err(|_| RpcError {
-        code: "INTERNAL_ERROR".into(),
-        message: "Could not read the local search response.".into(),
-    })?;
-    if response_exceeded_limit {
-        return Err(RpcError {
-            code: "INTERNAL_ERROR".into(),
-            message: "The local search service response exceeded the size limit.".into(),
-        });
-    }
-    if !status.success() {
-        return Err(RpcError {
-            code: "INTERNAL_ERROR".into(),
-            message: "The local search service exited unexpectedly.".into(),
-        });
-    }
-    let response: RpcResponse = serde_json::from_slice(&response_bytes).map_err(|_| RpcError {
-        code: "INTERNAL_ERROR".into(),
-        message: "The local search service returned an invalid response.".into(),
-    })?;
+
+    let response: RpcResponse = match serde_json::from_slice(&raw) {
+        Ok(parsed) => parsed,
+        Err(_) => {
+            *slot = None;
+            return Err(internal_error("Local worker returned malformed JSON"));
+        }
+    };
     if response.version != 1 || response.id != request.id {
-        return Err(RpcError {
-            code: "INTERNAL_ERROR".into(),
-            message: "The local search service returned a mismatched response.".into(),
-        });
+        *slot = None;
+        return Err(internal_error("Local worker returned a mismatched response"));
     }
+    // Application-level invalid filter / request errors are well-formed and
+    // DO NOT terminate the healthy worker.
     if response.ok {
         Ok(response.data.unwrap_or(Value::Null))
     } else {
-        Err(response.error.unwrap_or(RpcError {
-            code: "INTERNAL_ERROR".into(),
-            message: "The local search service could not complete the request.".into(),
-        }))
+        Err(response.error.unwrap_or_else(|| internal_error("Local search request failed")))
     }
 }
 
@@ -246,6 +262,19 @@ mod tests {
     use super::invoke_service;
     use serde_json::json;
     use std::path::Path;
+
+
+    #[test]
+    fn bounded_frames_reject_oversize_and_partial_responses() {
+        use super::{read_bounded_frame, MAX_RESPONSE_BYTES};
+        use std::io::BufReader;
+        let mut good = BufReader::new(&b"{\\"ok\\":true}\n"[..]);
+        assert_eq!(read_bounded_frame(&mut good).unwrap(), Some(b"{\\"ok\\":true}\n".to_vec()));
+        assert_eq!(read_bounded_frame(&mut good).unwrap(), None);
+        let too_large = vec![b'x'; MAX_RESPONSE_BYTES as usize + 1];
+        assert!(read_bounded_frame(&mut BufReader::new(too_large.as_slice())).is_err());
+        assert!(read_bounded_frame(&mut BufReader::new(&b"partial"[..])).is_err());
+    }
 
     #[test]
     fn stdio_health_taxonomy_and_search_use_real_local_service() {
