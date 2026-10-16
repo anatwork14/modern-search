@@ -54,6 +54,8 @@ function PaperCard({ paper }: { paper: SearchResult }) {
         {paper.year ? ` · ${paper.year}` : " · Year unavailable"}
         {paper.venue ? ` · ${paper.venue}` : ""}
       </p>
+      <p className="paper-abstract">{paper.abstract ?? "No abstract is available in the local index."}</p>
+      <details className="paper-inspector"><summary>Evidence & tags</summary>
       {paper.venue_evidence?.length ? (
         <div className="venue-evidence" aria-label="Source-reported venue evidence">
           <strong>Source-reported venue evidence</strong>
@@ -71,8 +73,6 @@ function PaperCard({ paper }: { paper: SearchResult }) {
           ))}
         </div>
       ) : null}
-      <p className="paper-abstract">{paper.abstract ?? "No abstract is available in the local index."}</p>
-      <details className="paper-inspector"><summary>Evidence & tags</summary>
       <div className="evidence-row">
         <span className="evidence-label">Matched by</span>
         {paper.match_routes.length ? paper.match_routes.map((route) => (
@@ -197,6 +197,7 @@ function App() {
     if (incompleteFacet) {
       setError("Complete each tag facet or remove it before searching.");
       setHasSearched(false);
+      setFiltersOpen(true);
       return;
     }
     setFiltersOpen(false);
@@ -283,6 +284,8 @@ function App() {
           <span className="status-dot" aria-hidden="true" />{statusText}
           <span className="shortcut-hint">⌘ K</span>
         </div>
+
+        {error && !hasSearched && <div className="error-banner" role="alert">{error}</div>}
 
         {filtersOpen && (
           <section className="filter-panel" aria-label="Search options">
