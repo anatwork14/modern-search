@@ -44,7 +44,7 @@
       "debugApplicationIdSuffix": ".debug"
     },
     "resources": {
-      "../../backend/": "backend/"
+      "../../../backend/": "backend/"
     }
   }
 }
