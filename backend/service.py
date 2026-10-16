@@ -78,17 +78,32 @@ def handle(request: object) -> dict:
 
 
 def main() -> int:
-    raw = sys.stdin.buffer.readline(MAX_REQUEST_BYTES + 1)
-    try:
-        if len(raw) > MAX_REQUEST_BYTES:
-            raise ValueError("Request exceeds maximum size")
-        request = json.loads(raw)
-        response = handle(request)
-    except (ValueError, UnicodeError):
-        response = {"version": 1, "id": None, "ok": False,
-                    "error": {"code": "INVALID_REQUEST", "message": "Invalid JSON request or size"}}
-    print(json.dumps(response, ensure_ascii=False, allow_nan=False))
-    return 0
+    """Serve newline-delimited RPC frames until EOF, without opening any port.
+
+    Legacy one-shot callers still work: send one JSON line, close stdin, and
+    consume one response. A desktop parent can keep the same child alive for
+    many commands. Each frame remains independently validated by handle().
+    """
+    while True:
+        raw = sys.stdin.buffer.readline(MAX_REQUEST_BYTES + 1)
+        if not raw:
+            return 0
+        try:
+            if len(raw) > MAX_REQUEST_BYTES:
+                # Drain the remainder of an overlong line before parsing the
+                # next request; do not accidentally interpret its tail as RPC.
+                while not raw.endswith(b"\\n"):
+                    raw = sys.stdin.buffer.readline(MAX_REQUEST_BYTES + 1)
+                    if not raw or raw.endswith(b"\\n"):
+                        break
+                raise ValueError("Request exceeds maximum size")
+            request = json.loads(raw)
+            response = handle(request)
+        except (ValueError, UnicodeError):
+            response = {"version": 1, "id": None, "ok": False,
+                        "error": {"code": "INVALID_REQUEST", "message": "Invalid JSON request or size"}}
+        # A persistent stdio worker must flush before the next request arrives.
+        print(json.dumps(response, ensure_ascii=False, allow_nan=False), flush=True)
 
 
 if __name__ == "__main__":

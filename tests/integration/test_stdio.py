@@ -1,5 +1,6 @@
 import json
 import os
+import select
 from pathlib import Path
 import subprocess
 import sys
@@ -42,6 +43,57 @@ class StdioTests(unittest.TestCase):
             self.assertTrue(search["ok"], search)
             self.assertEqual(search["data"]["results"], [])
             self.assertEqual(search["data"]["total"], 0)
+
+    def test_multiple_requests_stay_on_one_process_without_eof(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "catalog.sqlite3"
+            process = subprocess.Popen(
+                [sys.executable, "-m", "backend.service"],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                env={**os.environ, "RESEARCHOS_DB_PATH": str(path)},
+                bufsize=0,
+            )
+            try:
+                assert process.stdin is not None
+                assert process.stdout is not None
+                for idx, command, payload in (
+                    (1, "health", {}),
+                    (2, "taxonomy", {}),
+                    (3, "search", {"query": "hello", "mode": "STRICT", "scope": "LOCAL_ONLY"}),
+                    (4, "unsupported", {}),
+                    (5, "health", {}),
+                ):
+                    request = {"version": 1, "id": str(idx), "command": command, "payload": payload}
+                    process.stdin.write((json.dumps(request) + "\\n").encode())
+                    process.stdin.flush()
+                    readable, _, _ = select.select([process.stdout], [], [], 10)
+                    self.assertTrue(readable, "Worker failed to flush a response before stdin EOF")
+                    response = json.loads(process.stdout.readline())
+                    self.assertEqual(response["id"], str(idx))
+                    self.assertEqual(response["ok"], command != "unsupported")
+                    self.assertIsNone(process.poll(), "Worker should remain live across requests")
+                process.stdin.close()
+                self.assertEqual(process.wait(timeout=10), 0)
+                self.assertEqual(process.stderr.read(), b"")
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait(timeout=10)
+
+    def test_oversize_frame_does_not_poison_following_request(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "catalog.sqlite3"
+            good = json.dumps({"version": 1, "id": "after", "command": "health", "payload": {}})
+            raw = b"x" * (1_048_576 + 200) + b"\\n" + good.encode() + b"\\n"
+            result = subprocess.run([sys.executable, "-m", "backend.service"], input=raw,
+                                    capture_output=True, timeout=10,
+                                    env={**os.environ, "RESEARCHOS_DB_PATH": str(path)})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            responses = [json.loads(line) for line in result.stdout.splitlines()]
+            self.assertEqual(len(responses), 2)
+            self.assertEqual(responses[0]["error"]["code"], "INVALID_REQUEST")
+            self.assertTrue(responses[1]["ok"])
+            self.assertEqual(responses[1]["id"], "after")
 
 
 if __name__ == "__main__":
