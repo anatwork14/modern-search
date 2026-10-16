@@ -13,17 +13,22 @@
     "windows": [
       {
         "title": "ResearchOS",
-        "width": 1440,
-        "height": 900,
-        "minWidth": 640,
-        "minHeight": 600,
+        "width": 900,
+        "height": 354,
+        "minWidth": 560,
+        "minHeight": 260,
+        "center": true,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false
       }
     ],
     "security": {
       "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; object-src 'none'; frame-ancestors 'none'"
-    }
+    },
+    "macOSPrivateApi": true
   },
   "bundle": {
     "active": true,
@@ -37,6 +42,9 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    },
+    "resources": {
+      "../../../backend/": "backend/"
     }
   }
 }

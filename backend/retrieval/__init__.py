@@ -320,20 +320,39 @@ def _dense_ranks(dense: Any, warnings: list[str], query: str) -> tuple[dict[str,
         return {}, "unavailable"
 
 
-def search(papers: Iterable[dict], tags: Iterable[dict], request: dict, dense: Any = None) -> dict:
+class PreparedSearch:
+    """Immutable corpus metadata plus a reusable in-memory SQLite FTS index.
+
+    Owned by a single-threaded local stdio session. Close on corpus refresh.
+    The public search() path still builds and closes its own index per call.
+    """
+
+    def __init__(self, papers: Iterable[dict], tags: Iterable[dict]):
+        self.papers = list(papers)
+        self.tags = list(tags)
+        self.tag_by_id, self.names = _tag_dictionary(self.tags)
+        self.connection, self.by_id = _build_fts(self.papers, self.tag_by_id)
+        self.index_hash = _fingerprint(self.by_id, self.tags)
+
+    def close(self) -> None:
+        self.connection.close()
+
+
+def search(papers: Iterable[dict], tags: Iterable[dict], request: dict, dense: Any = None,
+           prepared: PreparedSearch | None = None) -> dict:
     """Search an exported paper/tag catalog and return MVP wire response data.
 
     The catalog is treated as untrusted input. All SQL values are bound parameters;
     FTS expressions are built only from individually quoted literal tokens.
     """
     query, mode, limit, cursor, filters = _validate(request)
-    papers = list(papers)
-    tags = list(tags)
-    tag_by_id, names = _tag_dictionary(tags)
-    facets = _resolve_facets(filters, tag_by_id, names)
-    connection, by_id = _build_fts(papers, tag_by_id)
+    owns_prepared = prepared is None
+    if prepared is None:
+        prepared = PreparedSearch(papers, tags)
+    connection, by_id = prepared.connection, prepared.by_id
     try:
-        index_hash = _fingerprint(by_id, tags)
+        facets = _resolve_facets(filters, prepared.tag_by_id, prepared.names)
+        index_hash = prepared.index_hash
         query_hash = _request_fingerprint(request)
         offset = _decode_cursor(cursor, query_hash, index_hash)
         doi, arxiv, phrases, terms = _query_parts(query)
@@ -442,7 +461,8 @@ def search(papers: Iterable[dict], tags: Iterable[dict], request: dict, dense: A
                 "index_version": f"sqlite-fts5-v1:{index_hash[:16]}", "dense_status": dense_status,
                 "warnings": warnings}
     finally:
-        connection.close()
+        if owns_prepared:
+            prepared.close()
 
 
-__all__ = ["search"]
+__all__ = ["search", "PreparedSearch"]

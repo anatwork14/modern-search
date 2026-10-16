@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { LogicalSize } from "@tauri-apps/api/dpi";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { SearchData, SearchMode, SearchRequest, SearchResult } from "./contracts";
 import { mockSearch } from "./mock";
 import { getHealth, isDesktopRuntime, searchLocal } from "./service";
@@ -52,6 +54,8 @@ function PaperCard({ paper }: { paper: SearchResult }) {
         {paper.year ? ` · ${paper.year}` : " · Year unavailable"}
         {paper.venue ? ` · ${paper.venue}` : ""}
       </p>
+      <p className="paper-abstract">{paper.abstract ?? "No abstract is available in the local index."}</p>
+      <details className="paper-inspector"><summary>Evidence & tags</summary>
       {paper.venue_evidence?.length ? (
         <div className="venue-evidence" aria-label="Source-reported venue evidence">
           <strong>Source-reported venue evidence</strong>
@@ -69,7 +73,6 @@ function PaperCard({ paper }: { paper: SearchResult }) {
           ))}
         </div>
       ) : null}
-      <p className="paper-abstract">{paper.abstract ?? "No abstract is available in the local index."}</p>
       <div className="evidence-row">
         <span className="evidence-label">Matched by</span>
         {paper.match_routes.length ? paper.match_routes.map((route) => (
@@ -82,6 +85,7 @@ function PaperCard({ paper }: { paper: SearchResult }) {
         {candidateTags.map((tag) => <span className="tag candidate-tag" key={tag.tag_id}>{tag.tag_id} · candidate</span>)}
         {!verifiedTags.length && !candidateTags.length && <span className="muted">No reviewed tags</span>}
       </div>
+      </details>
       <div className="paper-footer">
         <span>{paper.pdf_state === "VERIFIED_LOCAL" ? "Verified local PDF" : paper.pdf_state === "REMOTE_ONLY" ? "Remote PDF link only" : "No PDF available"}</span>
         {paper.source_url && /^https?:\/\//i.test(paper.source_url) && (
@@ -95,7 +99,7 @@ function PaperCard({ paper }: { paper: SearchResult }) {
 function App() {
   const desktop = useMemo(() => isDesktopRuntime(), []);
   const [source, setSource] = useState<"mock" | "local">(desktop ? "local" : "mock");
-  const [mode, setMode] = useState<SearchMode>("BROAD");
+  const [mode, setMode] = useState<SearchMode>("STRICT");
   const [eligibility, setEligibility] = useState("verified-qualified");
   const [query, setQuery] = useState("");
   const [facets, setFacets] = useState<Array<{
@@ -110,6 +114,8 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const searchRunId = useRef(0);
 
   const invalidateResults = useCallback(() => {
@@ -151,7 +157,39 @@ function App() {
 
   useEffect(() => { void checkHealth(); }, [checkHealth]);
 
-  const runSearch = async (event?: FormEvent, cursor: string | null = null) => {
+  // Keyboard-first launcher: ⌘K / Ctrl+K focuses search; Escape closes filters.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      } else if (event.key === "Escape" && filtersOpen) {
+        setFiltersOpen(false);
+        inputRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [filtersOpen]);
+
+  // Keep the transparent native window truly compact while idle.
+  // The preview in a regular browser retains a normal, responsive layout.
+  useEffect(() => {
+    if (!desktop) return;
+    const win = getCurrentWindow();
+    const height = filtersOpen ? 750 : hasSearched ? 800 : 354;
+    void (async () => {
+      try {
+        await win.setSize(new LogicalSize(900, height));
+        await win.center();
+      } catch {
+        // Layout remains functional when host window controls are restricted.
+      }
+    })();
+  }, [desktop, filtersOpen, hasSearched]);
+
+  const runSearch = async (event?: FormEvent, cursor: string | null = null, eligibilityOverride?: string) => {
     event?.preventDefault();
     const incompleteFacet = facets.some((facet) =>
       !facet.namespace.trim() || !facet.tagText.split(",").some((tag) => tag.trim()),
@@ -159,14 +197,17 @@ function App() {
     if (incompleteFacet) {
       setError("Complete each tag facet or remove it before searching.");
       setHasSearched(false);
+      setFiltersOpen(true);
       return;
     }
+    setFiltersOpen(false);
     const runId = cursor ? searchRunId.current : ++searchRunId.current;
     setBusy(true);
     setError(null);
     setHasSearched(true);
     try {
       const request = makeRequest(cursor);
+      if (eligibilityOverride) request.hard_filters.eligibility = [eligibilityOverride];
       const response = source === "mock" ? mockSearch(request) : await searchLocal(request);
       if (searchRunId.current !== runId) return;
       setSearchData((current) => cursor
@@ -190,26 +231,67 @@ function App() {
       : "Local service · checking connection";
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <a className="brand" href="#main" aria-label="ResearchOS home">
-          <img className="brand-mark" src="/researchos-icon.svg" alt="" aria-hidden="true" />
-          <span><strong>ResearchOS</strong><small>Local research library</small></span>
-        </a>
-        <div className={`connection ${source === "mock" ? "demo-connection" : "local-connection"}`} role="status">
+    <main className="launcher-shell">
+      <div className="launcher-column">
+        <section className="launcher-card" aria-label="ResearchOS quick search">
+          {desktop && <div className="drag-region" data-tauri-drag-region aria-label="Drag search window" />}
+          {desktop && <button className="close-window" type="button" aria-label="Close window" title="Close window" onClick={() => void getCurrentWindow().close()}>×</button>}
+          <form className="launcher-form" onSubmit={(event) => void runSearch(event)}>
+            <label className="sr-only" htmlFor="research-query">Research question or exact method</label>
+            <input
+              ref={inputRef}
+              id="research-query"
+              type="search"
+              value={query}
+              onChange={(event) => { invalidateResults(); setQuery(event.target.value); }}
+              placeholder="Search your research library"
+              autoComplete="off"
+              autoFocus
+              onKeyDown={(event) => {
+                if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                  event.preventDefault();
+                  void runSearch();
+                }
+              }}
+            />
+            <div className="launcher-actions">
+              <div className="action-group">
+                <button className={`action-icon ${filtersOpen ? "is-active" : ""}`} type="button" aria-label="Search options" aria-expanded={filtersOpen} title="Search options" onClick={() => setFiltersOpen((open) => !open)}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16" /></svg>
+                </button>
+                <span className="scope-copy">{source === "mock" ? "Fictional demo" : "Local · private"}</span>
+                {facets.length > 0 && <span className="facet-count">{facets.length} tag {facets.length === 1 ? "filter" : "filters"}</span>}
+              </div>
+              <div className="action-group">
+                <button className="mode-button" type="button" aria-label={`Search mode: ${mode === "STRICT" ? "Fast lexical" : "Hybrid"}. Click to switch`} title={mode === "STRICT" ? "Fast strict lexical search" : "Hybrid lexical and available local semantic candidates"} onClick={() => { invalidateResults(); setMode((current) => current === "BROAD" ? "STRICT" : "BROAD"); }}>
+                  {mode === "STRICT" ? "Fast" : "Hybrid"}
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+                </button>
+                <button className="search-button" type="submit" disabled={busy} aria-label={busy ? "Searching" : "Search"} title="Search (Enter)">
+                  {busy
+                    ? <span className="busy-spinner" aria-hidden="true" />
+                    : <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.7" cy="10.7" r="6.7" /><path d="m16 16 5 5" /></svg>}
+                </button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <nav className="launcher-tabs" aria-label="Quick search view">
+          <button className={!filtersOpen ? "active" : ""} type="button" aria-pressed={!filtersOpen} onClick={() => { setFiltersOpen(false); inputRef.current?.focus(); }}>Search</button>
+          <button className={filtersOpen ? "active" : ""} type="button" aria-pressed={filtersOpen} onClick={() => setFiltersOpen(true)}>Filters</button>
+        </nav>
+        <div className={`connection ${source === "mock" ? "demo-connection" : ""}`} role="status">
           <span className="status-dot" aria-hidden="true" />{statusText}
+          <span className="shortcut-hint">⌘ K</span>
         </div>
-      </header>
 
-      <section className="intro" aria-labelledby="page-title">
-        <p className="eyebrow">PAPER DISCOVERY WORKSPACE</p>
-        <h1 id="page-title">Find the work behind your next idea.</h1>
-        <p className="intro-copy">Search your local research library with exact terms and strict, reviewable filters.</p>
-      </section>
+        {error && !hasSearched && <div className="error-banner" role="alert">{error}</div>}
 
-      <div className="workspace" id="main">
-        <aside className="filter-panel" aria-label="Search options">
-          <h2>Search setup</h2>
+        {filtersOpen && (
+          <section className="filter-panel" aria-label="Search options">
+            <div className="filter-panel-inner">
+          <h2>Search options</h2>
           <fieldset className="source-options">
             <legend>Data source</legend>
             <label className="radio-row">
@@ -271,50 +353,45 @@ function App() {
           })}
           <button className="add-facet" type="button" onClick={() => { invalidateResults(); setFacets((current) => [...current, { id: crypto.randomUUID(), namespace: "", tagText: "", operator: "ANY", tagReviewState: "" }]); }}>+ Add tag facet</button>
           <p className="field-hint">Use canonical tag IDs. Facets combine with AND; operators apply within each facet.</p>
-        </aside>
-
-        <section className="results-panel" aria-labelledby="results-title">
-          <form className="search-form" onSubmit={(event) => void runSearch(event)}>
-            <label htmlFor="research-query">Research question or exact method</label>
-            <div className="query-row">
-              <input
-                id="research-query"
-                type="search"
-                value={query}
-                onChange={(event) => { invalidateResults(); setQuery(event.target.value); }}
-                onKeyDown={(event) => {
-                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") void runSearch();
-                }}
-                placeholder="Try “attention for LLM inference” or “FedAMP”"
-                autoFocus
-              />
-              <button className="search-button" type="submit" disabled={busy}>
-                {busy ? "Searching…" : "Search"}<span aria-hidden="true">⌕</span>
-              </button>
             </div>
-            <div className="search-note"><span>⌘ ↵</span> Search stays on this device</div>
-          </form>
-
-          <div className="result-heading">
-            <div><p className="eyebrow">LOCAL SEARCH</p><h2 id="results-title">{hasSearched ? `${searchData.total} ${searchData.total === 1 ? "result" : "results"}` : "Your results"}</h2></div>
-            <div className="index-summary" aria-label="Index availability">
-              <span>Index <b>{source === "mock" ? "DEMO" : health?.index_version ?? "checking"}</b></span>
-              <span>Dense search <b>{source === "mock" ? "demo only" : searchData.dense_status}</b></span>
+            <div className="filter-bar">
+              <span>Changing filters clears stale results. Search again to apply.</span>
+              <button type="button" onClick={() => { setFiltersOpen(false); inputRef.current?.focus(); }}>Done</button>
             </div>
-          </div>
+          </section>
+        )}
 
-          {error && <div className="error-banner" role="alert"><strong>Search unavailable</strong><span>{error}</span></div>}
-          {source === "local" && !desktop && <div className="empty-state"><span className="empty-icon" aria-hidden="true">⌁</span><h3>Open the desktop app to search locally</h3><p>The browser preview has no access to your on-device service. Demo records stay separate from the local library.</p></div>}
-          {source === "local" && desktop && !health && !error && <div className="empty-state"><span className="empty-icon" aria-hidden="true">⌁</span><h3>Connecting to your local index</h3><p>Search will use the on-device service. The renderer cannot choose its executable or database path.</p></div>}
-          {source === "local" && health?.paper_count === 0 && !hasSearched && <div className="empty-state"><span className="empty-icon" aria-hidden="true">⌕</span><h3>Your local index is empty</h3><p>Once the catalog has been imported, search results will appear here. No sample records are shown as library data.</p></div>}
-          {hasSearched && !error && searchData.warnings.map((warning) => <p className="warning-note" key={warning}>{warning}</p>)}
-          {hasSearched && !error && searchData.results.length === 0 && <div className="empty-state"><span className="empty-icon" aria-hidden="true">∅</span><h3>No papers matched these constraints</h3><p>Strict filters are preserved. Review your tags or deliberately change the query and filters.</p></div>}
-          <div className="paper-list" aria-live="polite">
-            {searchData.results.map((paper) => <PaperCard key={paper.paper_id} paper={paper} />)}
-          </div>
-          {searchData.next_cursor && <button className="more-button" disabled={busy} onClick={() => void runSearch(undefined, searchData.next_cursor)}>Load more local results</button>}
-          <footer className="results-footer">{source === "mock" ? "Demo results are fictional and are never saved to your library." : `Indexed in ${searchData.index_version || health?.index_version || "your local database"} · Dense route: ${searchData.dense_status}`}</footer>
-        </section>
+        {hasSearched && !filtersOpen && (
+          <section className="results-panel" aria-labelledby="results-title">
+            <div className="result-heading">
+              <div>
+                <p className="eyebrow">{source === "mock" ? "FICTIONAL DEMO" : "ON-DEVICE PAPER SEARCH"}</p>
+                <h2 id="results-title">{busy ? "Searching…" : `${searchData.total} ${searchData.total === 1 ? "result" : "results"}`}</h2>
+              </div>
+              <div className="result-controls">
+                <span>{eligibility === "verified-qualified" ? "Verified only" : `Eligibility: ${eligibility}`}</span>
+                <button type="button" aria-label="Collapse results" title="Collapse results" onClick={() => invalidateResults()}>×</button>
+              </div>
+            </div>
+            {error && <div className="error-banner" role="alert"><strong>Search unavailable</strong><span>{error}</span></div>}
+            {source === "local" && !desktop && <div className="empty-state"><h3>Open the desktop app to search locally</h3><p>The browser preview cannot access your private on-device index. Sample papers are never mixed into local results.</p></div>}
+            {hasSearched && !error && searchData.warnings.map((warning) => <p className="warning-note" key={warning}>{warning}</p>)}
+            {!busy && !error && searchData.results.length === 0 && !(source === "local" && !desktop) && (
+              <div className="empty-state">
+                <h3>No papers matched these constraints</h3>
+                <p>Exact eligibility and tag filters were preserved. {eligibility === "verified-qualified" ? "Your imported papers may still need eligibility review." : "Try a different query or adjust filters."}</p>
+                {eligibility === "verified-qualified"
+                  ? <button type="button" onClick={() => { setEligibility("unknown"); void runSearch(undefined, null, "unknown"); }}>Search unknown candidates instead</button>
+                  : <button type="button" onClick={() => setFiltersOpen(true)}>Review filters</button>}
+              </div>
+            )}
+            <div className="paper-list" aria-live="polite" aria-busy={busy}>
+              {searchData.results.map((paper) => <PaperCard key={paper.paper_id} paper={paper} />)}
+            </div>
+            {searchData.next_cursor && <button className="more-button" disabled={busy} onClick={() => void runSearch(undefined, searchData.next_cursor)}>Load more results</button>}
+            <footer className="results-footer">{source === "mock" ? "These are fictional UI fixtures, not scholarly evidence." : `Index: ${searchData.index_version} · Dense: ${searchData.dense_status} · Search remains local`}</footer>
+          </section>
+        )}
       </div>
     </main>
   );

@@ -71,3 +71,9 @@ jobs:
           cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
           cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
 
+      - name: Package macOS app with bundled Python source
+        working-directory: apps/desktop
+        run: |
+          npm run tauri build -- --debug --bundles app
+          test -f src-tauri/target/debug/bundle/macos/ResearchOS.app/Contents/Resources/backend/service.py
+          test -f src-tauri/target/debug/bundle/macos/ResearchOS.app/Contents/Resources/backend/persistence/migrations/0001_initial.sql
