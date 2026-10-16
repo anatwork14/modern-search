@@ -27,3 +27,9 @@ On found, `paper` is the existing exported structured catalog record, including 
 ## Implementation efficiency
 
 The new `get_paper` dispatch calls a parameterized indexed SQLite Paper_ID lookup and only serializes the matching paper's tags, identifiers and venue assertion rows; it does not perform the full-corpus `export_papers` scan required for search. List and lookup share the same serialization helper to prevent schema drift. Latency is NOT benchmarked until a realistic catalog is available.
+
+## Runtime capability discovery (latest branch)
+
+`health` now includes `capabilities: [health, search, taxonomy, get_paper]` and `fulltext_page_evidence: false`. The count uses an SQLite row count rather than serializing every paper; `taxonomy` exports only the tag table. The desktop `HealthData` contract declares these fields optional for backward compatibility. An older backend lacking them must not be presumed to support `get_paper`.
+
+**CI:** [GitHub Actions run 38862245515](https://github.com/anatwork14/modern-search/actions/runs/38862245515) completed successfully for commit `429df4face784b1b161492d7c7602126732ebf11` (desktop, Python contracts, acquisition).
