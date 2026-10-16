@@ -268,8 +268,8 @@ mod tests {
     fn bounded_frames_reject_oversize_and_partial_responses() {
         use super::{read_bounded_frame, MAX_RESPONSE_BYTES};
         use std::io::BufReader;
-        let mut good = BufReader::new(&b"{\\"ok\\":true}\n"[..]);
-        assert_eq!(read_bounded_frame(&mut good).unwrap(), Some(b"{\\"ok\\":true}\n".to_vec()));
+        let mut good = BufReader::new(&b"ready\n"[..]);
+        assert_eq!(read_bounded_frame(&mut good).unwrap(), Some(b"ready\n".to_vec()));
         assert_eq!(read_bounded_frame(&mut good).unwrap(), None);
         let too_large = vec![b'x'; MAX_RESPONSE_BYTES as usize + 1];
         assert!(read_bounded_frame(&mut BufReader::new(too_large.as_slice())).is_err());
