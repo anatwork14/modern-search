@@ -27,10 +27,17 @@ def handle(request: object) -> dict:
         if not isinstance(request_id, str) or not 1 <= len(request_id) <= 128:
             raise ValueError("Invalid request ID")
         command = request["command"]
-        if command not in ("health", "search", "taxonomy") or not isinstance(request["payload"], dict):
+        if command not in ("health", "search", "taxonomy", "get_paper") or not isinstance(request["payload"], dict):
             raise ValueError("Unsupported command or payload")
-        if command != "search" and request["payload"]:
+        if command in ("health", "taxonomy") and request["payload"]:
             raise ValueError("This command has no payload fields")
+        if command == "get_paper":
+            payload = request["payload"]
+            if set(payload) != {"paper_id"}:
+                raise ValueError("get_paper requires only paper_id")
+            paper_id = payload["paper_id"]
+            if not isinstance(paper_id, str) or not 1 <= len(paper_id) <= 128 or any(ord(ch) < 32 or ord(ch) == 127 for ch in paper_id):
+                raise ValueError("Invalid paper_id")
         from backend.persistence import connect, migrate, export_papers, export_tags
 
         path = database_path()
@@ -44,6 +51,14 @@ def handle(request: object) -> dict:
                         "index_version": "sqlite-v1", "paper_count": len(papers)}
             elif command == "taxonomy":
                 data = {"tags": tags}
+            elif command == "get_paper":
+                paper = next((p for p in papers if p["paper_id"] == request["payload"]["paper_id"]), None)
+                data = {
+                    "found": paper is not None,
+                    "paper": paper,
+                    "evidence_state": "catalog-metadata-only",
+                    "warnings": ["Catalog metadata and source assertions are not verified full-text/page-level evidence"],
+                }
             else:
                 from backend.retrieval import search
                 dense = None

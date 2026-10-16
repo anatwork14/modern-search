@@ -27,6 +27,8 @@ class IpcSchemaTests(unittest.TestCase):
                 "hard_filters": {"eligibility": ["verified-qualified"], "facets": []},
             }},
         ]
+        examples.append({"version":1,"id":"paper-1","command":"get_paper",
+                         "payload":{"paper_id":"P-example0123"}})
         for request in examples:
             with self.subTest(command=request["command"]):
                 self.assertEqual(list(self.validator.iter_errors(request)), [])
@@ -51,6 +53,14 @@ class IpcSchemaTests(unittest.TestCase):
         for request in cases:
             with self.subTest(request=request):
                 self.assertTrue(list(self.validator.iter_errors(request)))
+
+    def test_get_paper_metadata_contract_rejects_extra_fields_and_controls(self):
+        base={"version":1,"id":"paper","command":"get_paper","payload":{"paper_id":"P-abcdef1234"}}
+        self.assertFalse(list(self.validator.iter_errors(base)))
+        for payload in ({"paper_id":1},{"paper_id":""},{"paper_id":"bad\\nname"},
+                        {"paper_id":"P-abcdef1234","filesystem_path":"/private/db"}):
+            candidate={**base,"payload":payload}
+            self.assertTrue(list(self.validator.iter_errors(candidate)))
 
     def test_schema_rejects_unsafe_scope_and_malformed_cursor(self):
         base = {"version": 1, "id": "search-1", "command": "search", "payload": {

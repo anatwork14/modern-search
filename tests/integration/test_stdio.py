@@ -23,6 +23,10 @@ class StdioTests(unittest.TestCase):
             request = {"version": 1, "id": "test", "command": "shell", "payload": {}}
             self.assertEqual(self.invoke(json.dumps(request), path)["error"]["code"],
                              "INVALID_REQUEST")
+            invalid = {"version":1,"id":"p","command":"get_paper","payload":{"paper_id":123}}
+            self.assertEqual(self.invoke(json.dumps(invalid),path)["error"]["code"],"INVALID_REQUEST")
+            overshared = {"version":1,"id":"p","command":"get_paper","payload":{"paper_id":"P-12345678","path":"/secret"}}
+            self.assertEqual(self.invoke(json.dumps(overshared),path)["error"]["code"],"INVALID_REQUEST")
             self.assertFalse(path.exists())
 
     def test_health_taxonomy_and_search_with_empty_database(self):
@@ -42,6 +46,12 @@ class StdioTests(unittest.TestCase):
             self.assertTrue(search["ok"], search)
             self.assertEqual(search["data"]["results"], [])
             self.assertEqual(search["data"]["total"], 0)
+            get_paper = self.invoke(json.dumps({"version":1,"id":"p","command":"get_paper",
+                                                "payload":{"paper_id":"P-example0123"}}),path)
+            self.assertTrue(get_paper["ok"])
+            self.assertFalse(get_paper["data"]["found"])
+            self.assertIsNone(get_paper["data"]["paper"])
+            self.assertEqual(get_paper["data"]["evidence_state"],"catalog-metadata-only")
 
 
 if __name__ == "__main__":
