@@ -53,35 +53,37 @@ def handle(request: object) -> dict:
                     "evidence_state": "catalog-metadata-only",
                     "warnings": ["Catalog metadata and source assertions are not verified full-text/page-level evidence"],
                 }
+            elif command == "health":
+                count = connection.execute("SELECT count(*) FROM papers").fetchone()[0]
+                data = {"status": "ready", "offline": True, "dense_status": "unavailable",
+                        "index_version": "sqlite-v1", "paper_count": count,
+                        "capabilities": ["health", "search", "taxonomy", "get_paper"],
+                        "fulltext_page_evidence": False}
+            elif command == "taxonomy":
+                data = {"tags": export_tags(connection)}
             else:
                 papers, tags = export_papers(connection), export_tags(connection)
-                if command == "health":
-                    data = {"status": "ready", "offline": True, "dense_status": "unavailable",
-                            "index_version": "sqlite-v1", "paper_count": len(papers)}
-                elif command == "taxonomy":
-                    data = {"tags": tags}
-                else:
-                    from backend.retrieval import search
-                    dense = None
-                    warnings = []
-                    payload = request["payload"]
-                    index_path = Path(os.environ.get("RESEARCHOS_INDEX_PATH", str(path.with_suffix(".dense.json"))))
-                    if payload.get("mode", "STRICT") == "BROAD" and isinstance(payload.get("query", ""), str) and payload.get("query", "").strip():
-                        if index_path.is_file():
-                            try:
-                                from backend.vector.index import DenseIndex
-                                dense = DenseIndex(index_path, papers, tags)
-                            except Exception:
-                                warnings.append("Dense index is invalid or out of date; lexical search remains available")
-                        else:
-                            warnings.append("No local dense index is installed; lexical search remains available")
-                    data = search(papers, tags, payload, dense=dense)
-                    data["warnings"].extend(warnings)
-                    by_id = {paper["paper_id"]: paper for paper in papers}
-                    for result in data["results"]:
-                        paper = by_id[result["paper_id"]]
-                        result["venue"] = paper.get("venue")
-                        result["venue_evidence"] = paper.get("venue_evidence", [])
+                from backend.retrieval import search
+                dense = None
+                warnings = []
+                payload = request["payload"]
+                index_path = Path(os.environ.get("RESEARCHOS_INDEX_PATH", str(path.with_suffix(".dense.json"))))
+                if payload.get("mode", "STRICT") == "BROAD" and isinstance(payload.get("query", ""), str) and payload.get("query", "").strip():
+                    if index_path.is_file():
+                        try:
+                            from backend.vector.index import DenseIndex
+                            dense = DenseIndex(index_path, papers, tags)
+                        except Exception:
+                            warnings.append("Dense index is invalid or out of date; lexical search remains available")
+                    else:
+                        warnings.append("No local dense index is installed; lexical search remains available")
+                data = search(papers, tags, payload, dense=dense)
+                data["warnings"].extend(warnings)
+                by_id = {paper["paper_id"]: paper for paper in papers}
+                for result in data["results"]:
+                    paper = by_id[result["paper_id"]]
+                    result["venue"] = paper.get("venue")
+                    result["venue_evidence"] = paper.get("venue_evidence", [])
         finally:
             connection.close()
         return {**envelope, "ok": True, "data": data}

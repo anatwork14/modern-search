@@ -85,6 +85,8 @@ export interface HealthData {
   dense_status: "unavailable" | "ready";
   index_version: string;
   paper_count: number;
+  capabilities?: string[];
+  fulltext_page_evidence?: boolean;
 }
 
 export interface TaxonomyTag {
