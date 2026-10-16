@@ -338,7 +338,8 @@ class PreparedSearch:
         self.connection.close()
 
 
-def search(papers: Iterable[dict], tags: Iterable[dict], request: dict, dense: Any = None,\n           prepared: PreparedSearch | None = None) -> dict:
+def search(papers: Iterable[dict], tags: Iterable[dict], request: dict, dense: Any = None,
+           prepared: PreparedSearch | None = None) -> dict:
     """Search an exported paper/tag catalog and return MVP wire response data.
 
     The catalog is treated as untrusted input. All SQL values are bound parameters;
