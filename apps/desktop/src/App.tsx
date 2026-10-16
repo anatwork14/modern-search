@@ -178,7 +178,7 @@ function App() {
   useEffect(() => {
     if (!desktop) return;
     const win = getCurrentWindow();
-    const height = hasSearched ? 800 : filtersOpen ? 650 : 312;
+    const height = filtersOpen ? 750 : hasSearched ? 800 : 354;
     void (async () => {
       try {
         await win.setSize(new LogicalSize(900, height));
@@ -199,6 +199,7 @@ function App() {
       setHasSearched(false);
       return;
     }
+    setFiltersOpen(false);
     const runId = cursor ? searchRunId.current : ++searchRunId.current;
     setBusy(true);
     setError(null);
@@ -356,7 +357,7 @@ function App() {
           </section>
         )}
 
-        {hasSearched && (
+        {hasSearched && !filtersOpen && (
           <section className="results-panel" aria-labelledby="results-title">
             <div className="result-heading">
               <div>
