@@ -37,6 +37,9 @@ class StdioTests(unittest.TestCase):
             self.assertTrue(health["ok"], health)
             self.assertTrue(health["data"]["offline"])
             self.assertEqual(health["data"]["paper_count"], 0)
+            self.assertIn("get_paper", health["data"]["capabilities"])
+            self.assertFalse(health["data"]["fulltext_page_evidence"])
+            self.assertEqual(health["data"]["index_version"], "sqlite-v1")
             taxonomy = self.invoke(json.dumps({"version": 1, "id": "t", "command": "taxonomy",
                                               "payload": {}}), path)
             self.assertEqual(taxonomy["data"]["tags"], [])
