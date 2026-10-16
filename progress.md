@@ -153,3 +153,10 @@ This is an additive Drive transfer and an independently audited icon implementat
 | `/root` — `integration/researchos-mvp` | IN PROGRESS | PR #12 remains a draft to `main`; lead tracks integration and campaign completion. The final all-paper manifest awaits terminal acquisition reconciliation. |
 
 Campaign totals are not final. The read-only catalog snapshot contains 2,478 candidates, 1,580 with no direct PDF URL, and 184 JMLR masthead-prefix titles (151 without a catalog article-title tail). At the checkpoint, 35 uploaded PDFs are JMLR papers; 23 masthead-repair titles were verified against official JMLR landing pages and exact PDF links. Source qualification (SJR Q1/Q2 or CORE A/A*) remains a separate, unvalidated filter. The ZIP contained no full-text PDF set. The external uploads do not change the app's local-PDF or qualification status, and source catalog/database state remains unchanged. `unavailable` describes attempted endpoint responses, not proof a paper is globally unavailable.
+
+## UI-QUICK-SEARCH — Gemini-inspired launcher (2026-10-16)
+
+- **Status: IN_PROGRESS** — owner: ChatGPT implementation; branch `feat/gemini-inspired-quick-search`; PR [#17](https://github.com/anatwork14/modern-search/pull/17); started 2026-10-16 12:13 UTC.
+- **Implemented candidate:** compact rounded Tauri launcher and native window resizing, keyboard search, progressive-disclosure filters, concise research result cards. Paths: `apps/desktop/src/{App.tsx,App.css,index.css,App.test.tsx}`, `apps/desktop/src-tauri/{tauri.conf.json,capabilities/default.json}`, `docs/QUICK_SEARCH_UI.md`.
+- **CI observed:** frontend Vitest/typecheck/lint/build PASS and Python contracts/acquisition PASS on [run 38900132723](https://github.com/anatwork14/modern-search/actions/runs/38900132723). Rust compile/test still running at observation time; do not assume success.
+- **NEXT GATE:** macOS Tauri smoke on target machine: transparent rounded corners, drag, close, compact-to-results resize, real local search, source toggle, keyboard access, small display. Attach screenshots to PR; reconcile any CI failures. No measured retrieval speed improvement is claimed.
