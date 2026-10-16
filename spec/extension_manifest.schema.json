@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/researchos/extension_manifest.schema.json",
+  "title": "ResearchOS extension manifest v0 proposal",
+  "description": "Design contract; not an active plugin runtime or permission grant.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "version",
+    "core_api",
+    "kind",
+    "display_name",
+    "permissions",
+    "capabilities",
+    "supported_media_types",
+    "resource_budget",
+    "offline_capable"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1-proposal"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$",
+      "maxLength": 96
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[a-zA-Z0-9.-]+)?$"
+    },
+    "core_api": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "kind": {
+      "enum": [
+        "source-adapter",
+        "parser",
+        "enricher",
+        "exporter",
+        "profile",
+        "reranker",
+        "evidence-extractor",
+        "agent-gateway"
+      ]
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "permissions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(source:read|corpus:search|evidence:read|notes:read|data:write:(annotations|imports)|experiment:read|network:[a-z0-9-]+)$"
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 128
+      }
+    },
+    "supported_media_types": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 128
+      }
+    },
+    "offline_capable": {
+      "type": "boolean"
+    },
+    "resource_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_ram_mb",
+        "max_concurrent_jobs",
+        "max_job_seconds"
+      ],
+      "properties": {
+        "max_ram_mb": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 131072
+        },
+        "max_concurrent_jobs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "max_job_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        }
+      }
+    },
+    "supported_profiles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 96
+      }
+    },
+    "requires": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 96
+      }
+    },
+    "test_fixtures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 256
+      }
+    }
+  }
+}

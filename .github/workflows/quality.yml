@@ -1,0 +1,73 @@
+name: quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - integration/researchos-mvp
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-contracts:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install schema validator
+        run: python -m pip install --disable-pip-version-check 'jsonschema==4.26.0'
+      - name: Validate protocol schema and quality contract tests
+        run: python -m unittest discover -s tests/contracts -v
+      - name: Data import tests
+        run: python -m unittest discover -s tests/data -v
+      - name: Embedding contract tests
+        run: python -m unittest discover -s tests/embeddings -v
+      - name: Retrieval tests
+        run: python -m unittest discover -s tests/retrieval -v
+      - name: Security acceptance tests
+        run: python -m unittest discover -s tests/security -v
+      - name: Stdio integration tests
+        run: python -m unittest discover -s tests/integration -v
+
+  acquisition:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install isolated PDF parser dependency
+        run: python -m pip install --disable-pip-version-check -r backend/acquisition-requirements.txt
+      - name: Acquisition, identity, and network-boundary tests
+        run: python -m unittest discover -s tests/acquisition -v
+
+  desktop:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Frontend tests, types, and production build
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npm test
+          npm run lint
+          npm run build
+      - name: Rust compile and test gate
+        env:
+          MODERN_SEARCH_PYTHON: python
+          RESEARCHOS_DB_PATH: ${{ runner.temp }}/researchos-desktop-smoke/catalog.sqlite3
+        run: |
+          cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+          cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+
