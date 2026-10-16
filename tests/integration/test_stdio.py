@@ -54,5 +54,39 @@ class StdioTests(unittest.TestCase):
             self.assertEqual(get_paper["data"]["evidence_state"],"catalog-metadata-only")
 
 
+    def test_get_paper_returns_existing_source_attributed_record(self):
+        from backend.ingest import import_catalog
+        from backend.persistence import connect, migrate
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/"catalog.sqlite3"
+            db=connect(path)
+            try:
+                migrate(db)
+                fixture={
+                    "tags":[{"tag_id":"method/example","namespace":"method","label":"Example","aliases":[]}],
+                    "papers":[{"paper_id":"P-original-1","title":"Source-backed paper",
+                               "authors":["Researcher"],"year":2025,"source_url":"https://example.org/paper",
+                               "eligibility":"unknown"}],
+                    "paper_tags":[{"paper_id":"P-original-1","tag_id":"method/example",
+                                   "role":"candidate","asserted_from":"lexical_discovery",
+                                   "review_state":"needs-manual-review","evidence":"synthetic fixture"}],
+                }
+                import_catalog(db, fixture, "fixture", "revision1")
+            finally:
+                db.close()
+            found=self.invoke(json.dumps({"version":1,"id":"read","command":"get_paper",
+                                          "payload":{"paper_id":"P-original-1"}}),path)
+            self.assertTrue(found["ok"],found)
+            result=found["data"]
+            self.assertTrue(result["found"])
+            self.assertEqual(result["paper"]["paper_id"],"P-original-1")
+            self.assertEqual(result["paper"]["title"],"Source-backed paper")
+            self.assertEqual(result["paper"]["tags"][0]["review_state"],"needs-manual-review")
+            self.assertEqual(result["evidence_state"],"catalog-metadata-only")
+            missing=self.invoke(json.dumps({"version":1,"id":"miss","command":"get_paper",
+                                            "payload":{"paper_id":"P-nonexisting"}}),path)
+            self.assertFalse(missing["data"]["found"])
+
+
 if __name__ == "__main__":
     unittest.main()
