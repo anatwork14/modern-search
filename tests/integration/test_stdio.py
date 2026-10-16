@@ -1,6 +1,8 @@
 import json
 import os
 import select
+import sqlite3
+from unittest.mock import patch
 from pathlib import Path
 import subprocess
 import sys
@@ -43,6 +45,42 @@ class StdioTests(unittest.TestCase):
             self.assertTrue(search["ok"], search)
             self.assertEqual(search["data"]["results"], [])
             self.assertEqual(search["data"]["total"], 0)
+
+
+    def test_session_reuses_fts_then_refreshes_after_catalog_commit(self):
+        from backend.service import SessionCache, handle
+
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "catalog.sqlite3"
+            session = SessionCache()
+            def request(command, payload):
+                return {"version": 1, "id": command, "command": command, "payload": payload}
+            with patch.dict(os.environ, {"RESEARCHOS_DB_PATH": str(path)}):
+                first = handle(request("health", {}), session=session)
+                self.assertEqual(first["data"]["paper_count"], 0)
+                old = session.prepared
+                again = handle(request("taxonomy", {}), session=session)
+                self.assertTrue(again["ok"])
+                self.assertIs(session.prepared, old)
+
+                # Simulate a legitimate external catalog importer committing
+                # while the desktop's private Python worker remains alive.
+                with sqlite3.connect(path) as writer:
+                    writer.execute(
+                        "INSERT INTO papers (paper_id,title,created_at,updated_at) VALUES (?,?,?,?)",
+                        ("CACHE-001", "Cached Search Freshness", "2026-10-16", "2026-10-16"),
+                    )
+
+                refreshed = handle(request("health", {}), session=session)
+                self.assertEqual(refreshed["data"]["paper_count"], 1)
+                self.assertIsNot(session.prepared, old)
+                result = handle(request("search", {
+                    "query": "Cached Search Freshness", "mode": "STRICT",
+                    "scope": "LOCAL_ONLY", "hard_filters": {"eligibility": ["unknown"]},
+                }), session=session)
+                self.assertTrue(result["ok"], result)
+                self.assertEqual([p["paper_id"] for p in result["data"]["results"]], ["CACHE-001"])
+            session.close()
 
     def test_multiple_requests_stay_on_one_process_without_eof(self):
         with tempfile.TemporaryDirectory() as folder:
