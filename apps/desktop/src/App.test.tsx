@@ -10,7 +10,7 @@ describe("ResearchOS quick-search launcher", () => {
     render(<App />);
     expect(screen.getByRole("region", { name: /researchos quick search/i })).toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: /research question or exact method/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: /researchos quick search/i })).getByRole("button", { name: "Search" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /search mode: broad/i })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Demo mode · fictional sample records");
     expect(screen.queryByRole("heading", { name: "Your results" })).not.toBeInTheDocument();
@@ -24,7 +24,7 @@ describe("ResearchOS quick-search launcher", () => {
     const paper = await screen.findByText("DEMO-001");
     const card = paper.closest("article");
     expect(card).not.toBeNull();
-    expect(screen.getByText(/fictional UI fixtures/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/fictional UI fixtures/i)).toHaveLength(2);
     expect(within(card!).getByText("No PDF available")).toBeInTheDocument();
     expect(within(card!).getByText("Source-reported venue evidence")).toBeInTheDocument();
     await user.click(within(card!).getByText("Evidence & tags"));
