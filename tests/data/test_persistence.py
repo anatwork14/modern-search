@@ -2,7 +2,7 @@ import sqlite3
 import unittest
 
 from backend.ingest import import_catalog
-from backend.persistence import connect, export_papers, export_tags, migrate
+from backend.persistence import connect, export_papers, export_tags, lookup_paper, migrate
 
 
 def catalog():
@@ -54,6 +54,19 @@ class PersistenceTests(unittest.TestCase):
         self.assertEqual(paper["pdf_state"], "REMOTE_ONLY")
         self.assertEqual(paper["tags"][0]["review_state"], "needs-manual-review")
         self.assertEqual(export_tags(self.db)[0]["aliases"], ["Example alias"])
+
+    def test_indexed_paper_lookup_matches_catalog_export(self):
+        import_catalog(self.db, catalog(), "fixture", "r1")
+        full = export_papers(self.db)[0]
+        one = lookup_paper(self.db, "P-original-1")
+        self.assertEqual(one, full)
+        self.assertIsNone(lookup_paper(self.db, "P-does-not-exist"))
+        self.assertIsNone(lookup_paper(self.db, "P-original-1' OR 1=1 --"))
+        with self.assertRaises(ValueError):
+            lookup_paper(self.db, "")
+        plan = [r[3] for r in self.db.execute(
+            "EXPLAIN QUERY PLAN SELECT paper_id FROM papers WHERE paper_id=?", ("P-original-1",))]
+        self.assertTrue(any("SEARCH" in line and "paper_id" in line for line in plan), plan)
 
     def test_new_source_revision_retains_prior_provenance_without_duplicate_assertions(self):
         source = catalog()

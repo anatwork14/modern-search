@@ -27,24 +27,42 @@ def handle(request: object) -> dict:
         if not isinstance(request_id, str) or not 1 <= len(request_id) <= 128:
             raise ValueError("Invalid request ID")
         command = request["command"]
-        if command not in ("health", "search", "taxonomy") or not isinstance(request["payload"], dict):
+        if command not in ("health", "search", "taxonomy", "get_paper") or not isinstance(request["payload"], dict):
             raise ValueError("Unsupported command or payload")
-        if command != "search" and request["payload"]:
+        if command in ("health", "taxonomy") and request["payload"]:
             raise ValueError("This command has no payload fields")
-        from backend.persistence import connect, migrate, export_papers, export_tags
+        if command == "get_paper":
+            payload = request["payload"]
+            if set(payload) != {"paper_id"}:
+                raise ValueError("get_paper requires only paper_id")
+            paper_id = payload["paper_id"]
+            if not isinstance(paper_id, str) or not 1 <= len(paper_id) <= 128 or any(ord(ch) < 32 or ord(ch) == 127 for ch in paper_id):
+                raise ValueError("Invalid paper_id")
+        from backend.persistence import connect, migrate, export_papers, export_tags, lookup_paper
 
         path = database_path()
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         connection = connect(path)
         try:
             migrate(connection)
-            papers, tags = export_papers(connection), export_tags(connection)
-            if command == "health":
+            if command == "get_paper":
+                paper = lookup_paper(connection, request["payload"]["paper_id"])
+                data = {
+                    "found": paper is not None,
+                    "paper": paper,
+                    "evidence_state": "catalog-metadata-only",
+                    "warnings": ["Catalog metadata and source assertions are not verified full-text/page-level evidence"],
+                }
+            elif command == "health":
+                count = connection.execute("SELECT count(*) FROM papers").fetchone()[0]
                 data = {"status": "ready", "offline": True, "dense_status": "unavailable",
-                        "index_version": "sqlite-v1", "paper_count": len(papers)}
+                        "index_version": "sqlite-v1", "paper_count": count,
+                        "capabilities": ["health", "search", "taxonomy", "get_paper"],
+                        "fulltext_page_evidence": False}
             elif command == "taxonomy":
-                data = {"tags": tags}
+                data = {"tags": export_tags(connection)}
             else:
+                papers, tags = export_papers(connection), export_tags(connection)
                 from backend.retrieval import search
                 dense = None
                 warnings = []

@@ -67,3 +67,13 @@ A debug app can be built with `npm run tauri build -- --debug --bundles app` fro
 - [Product](docs/PRODUCT_SPEC.md), [architecture](docs/ARCHITECTURE.md), [data](docs/DATA_AND_TAXONOMY.md), [retrieval](docs/RETRIEVAL_SPEC.md)
 - [Privacy](docs/SECURITY_PRIVACY.md), [evaluation](docs/EVALUATION_AND_TESTS.md), [source audit](docs/audits/)
 - [Canonical workbook](https://docs.google.com/spreadsheets/d/1aFPn80GxpTaapzMnIc6dJlE1esn0W9Lk/edit), [source folder](https://drive.google.com/drive/folders/1tUj_kTXYSAuBCXlnGNK-HpUQBfn5r7R1)
+
+## Research workspace precise Paper_ID lookup (optional branch feature)
+
+The companion [research workspace PR #3](https://github.com/anatwork14/research/pull/3) can call a new `get_paper` local JSON-stdio command (implemented by [PR #16](https://github.com/anatwork14/modern-search/pull/16), not available on older main builds):
+
+```json
+{"version":1,"id":"paper-1","command":"get_paper","payload":{"paper_id":"P-original-1"}}
+```
+
+It performs a parameterized lookup on SQLite primary-key Paper_ID, returns the existing catalog record (or found:false), and flags `catalog-metadata-only`. It **does not** return PDF page evidence, verify Q1 venue, or perform any catalog mutation. See `docs/contracts/RESEARCH_WORKSPACE_READONLY_V1.md` and contract/integration tests.

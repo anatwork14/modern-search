@@ -24,7 +24,8 @@
       "enum": [
         "health",
         "search",
-        "taxonomy"
+        "taxonomy",
+        "get_paper"
       ]
     },
     "payload": {
@@ -63,6 +64,22 @@
         "properties": {
           "payload": {
             "$ref": "#/$defs/search"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "get_paper"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/get_paper"
           }
         }
       }
@@ -177,6 +194,21 @@
               }
             }
           }
+        }
+      }
+    },
+    "get_paper": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "paper_id"
+      ],
+      "properties": {
+        "paper_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
         }
       }
     }
