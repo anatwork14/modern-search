@@ -191,8 +191,6 @@ function App() {
   const eligibility = eligibilityChoice ?? defaultEligibilityForCatalog(health, source);
   const candidateCount = health?.eligibility_counts?.unknown ?? 0;
   const verifiedCount = health?.eligibility_counts?.["verified-qualified"];
-  const candidatesDefaulted = source === "local" && eligibilityChoice === null &&
-    eligibility === "unknown" && verifiedCount === 0 && candidateCount > 0;
   const canBrowsePapers = source === "local" && (health?.paper_count ?? 0) > 0;
 
   const invalidateResults = useCallback(() => {
@@ -357,7 +355,7 @@ function App() {
         const monitor = await currentMonitor();
         if (cancelled) return;
         if (!monitor) {
-          await win.setSize(new LogicalSize(780, expanded ? 580 : 270));
+          await win.setSize(new LogicalSize(760, expanded ? 620 : 165));
           return;
         }
         const area = monitor.workArea ?? { position: monitor.position, size: monitor.size };
@@ -455,6 +453,12 @@ function App() {
         ? `Local service unavailable: ${error}`
         : "Local service · connecting";
 
+  const placeholderText = source === "mock"
+    ? "Search fictional demo papers or methods…"
+    : health && health.paper_count > 0
+      ? `Search ${health.paper_count.toLocaleString()} papers, authors, DOI, or topics…`
+      : "Find papers, authors, DOI, or research topics";
+
   return (
     <main className="launcher-shell">
       <div className="launcher-column">
@@ -485,7 +489,7 @@ function App() {
               type="search"
               value={query}
               onChange={(event) => { invalidateResults(); setQuery(event.target.value); }}
-              placeholder="Find papers, authors, DOI, or research topics"
+              placeholder={placeholderText}
               autoComplete="off"
               autoFocus
               onKeyDown={(event) => {
@@ -495,38 +499,65 @@ function App() {
                 }
               }}
             />
-            <div className="launcher-actions">
+            <nav className="launcher-actions" aria-label="Quick search view">
               <div className="action-group">
                 <button
-                  className={`action-icon ${filtersOpen ? "is-active" : ""}`}
+                  className={`filter-toggle-btn ${filtersOpen ? "is-active" : ""}`}
                   type="button"
-                  aria-label="Search options"
+                  aria-label="Filters"
                   aria-expanded={filtersOpen}
-                  title="Search options"
+                  title="Search options and filters"
                   onClick={() => setFiltersOpen((open) => !open)}
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16" /></svg>
+                  <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M3 5h14M6 10h8M8 15h4" strokeLinecap="round" />
+                  </svg>
+                  <span>Filters</span>
+                  {facets.length > 0 && <span className="filter-badge">{facets.length}</span>}
                 </button>
-                <span className="scope-copy">{source === "mock" ? "Fictional demo" : "Local · private"}</span>
-                {source === "local" && (
+                {source === "local" ? (
                   <button
                     className="scope-pill"
                     type="button"
-                    aria-label={`Current library scope: ${eligibility === "unknown" ? "Unverified papers" : "Verified only"}. Click to toggle.`}
+                    aria-label={`Current library scope: ${eligibility === "unknown" ? "Unverified candidates" : "Verified only"}. Click to toggle.`}
                     title={eligibility === "unknown"
-                      ? "Searching all candidate papers (unverified). Click to switch to verified qualified."
-                      : "Searching only verified qualified papers. Click to switch to candidate papers."}
+                      ? "Searching candidate papers (unverified). Click to switch to verified qualified."
+                      : "Searching verified qualified papers only. Click to switch to candidate papers."}
                     onClick={() => {
                       invalidateResults();
                       setEligibilityChoice((cur) => (cur ?? defaultEligibilityForCatalog(health, source)) === "verified-qualified" ? "unknown" : "verified-qualified");
                     }}
                   >
-                    {eligibility === "unknown" ? "Candidate papers" : "Verified only"}
+                    <span className="scope-dot" aria-hidden="true" />
+                    <span>{eligibility === "unknown"
+                      ? `${health ? health.paper_count.toLocaleString() : "2,478"} Candidates`
+                      : "Verified only"}</span>
+                  </button>
+                ) : (
+                  <span className="scope-pill demo-scope">
+                    <span className="scope-dot demo-dot" aria-hidden="true" />
+                    <span>Demo mode</span>
+                  </span>
+                )}
+                {canBrowsePapers && (
+                  <button
+                    type="button"
+                    className="browse-link"
+                    title="Browse all papers in the local library"
+                    onClick={() => {
+                      invalidateResults();
+                      const nextScope = eligibility === "verified-qualified" && verifiedCount === 0 && candidateCount > 0 ? "unknown" : eligibility;
+                      if (nextScope !== eligibility) setEligibilityChoice(nextScope);
+                      setQuery("");
+                      void runSearch(undefined, null, nextScope, "");
+                    }}
+                  >
+                    Browse all
                   </button>
                 )}
-                {facets.length > 0 && <span className="facet-count">{facets.length} tag {facets.length === 1 ? "filter" : "filters"}</span>}
               </div>
               <div className="action-group">
+                <span className="shortcut-hint" title="Press ⌘K to focus search">⌘K</span>
                 <button
                   className="mode-button"
                   type="button"
@@ -534,7 +565,7 @@ function App() {
                   title={mode === "STRICT" ? "Fast strict lexical search" : "Flexible keyword matching plus optional local semantic search"}
                   onClick={() => { invalidateResults(); setMode((current) => current === "BROAD" ? "STRICT" : "BROAD"); }}
                 >
-                  {mode === "STRICT" ? "Fast" : "Hybrid"}
+                  <span className="mode-label">{mode === "STRICT" ? "Fast" : "Hybrid"}</span>
                   <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
                 </button>
                 <button className="search-button" type="submit" disabled={busy} aria-label={busy ? "Searching" : "Search"} title="Search (Enter)">
@@ -543,40 +574,12 @@ function App() {
                     : <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.7" cy="10.7" r="6.7" /><path d="m16 16 5 5" /></svg>}
                 </button>
               </div>
+            </nav>
+            <div className="connection-sr" role="status" aria-live="polite">
+              <span className="status-dot" aria-hidden="true" />
+              <span>{statusText}</span>
             </div>
           </form>
-          <div className="launcher-utility-row">
-        <nav className="launcher-tabs" aria-label="Quick search view">
-          <button className={!filtersOpen ? "active" : ""} type="button" aria-pressed={!filtersOpen} onClick={() => { setFiltersOpen(false); inputRef.current?.focus(); }}>Search</button>
-          <button className={filtersOpen ? "active" : ""} type="button" aria-pressed={filtersOpen} onClick={() => setFiltersOpen(true)}>Filters</button>
-        </nav>
-        <div className={`connection ${source === "mock" ? "demo-connection" : ""}`} role="status">
-          <span className="status-dot" aria-hidden="true" />
-          <span className="connection-copy">{statusText}</span>
-          <span className="shortcut-hint">⌘ K</span>
-        </div>
-          </div>
-
-        {source === "local" && !filtersOpen && !hasSearched && candidateCount > 0 && (
-          <div className="discovery-guide" role="note">
-            <span className="discovery-guide-copy">
-              <strong>{candidatesDefaulted ? "Discovery is ready" : eligibility === "unknown" ? "Candidate discovery" : "Verified-only search"}</strong>
-              {" · "}
-              {eligibility === "unknown"
-                ? "Papers are imported, not qualification-verified."
-                : verifiedCount === 0
-                  ? "No papers have been qualification-verified yet."
-                  : "Only verified-qualified papers are included."}
-            </span>
-            <button type="button" className="browse-button" onClick={() => {
-              invalidateResults();
-              const nextScope = eligibility === "verified-qualified" && verifiedCount === 0 && candidateCount > 0 ? "unknown" : eligibility;
-              if (nextScope !== eligibility) setEligibilityChoice(nextScope);
-              setQuery("");
-              void runSearch(undefined, null, nextScope, "");
-            }}>Browse {eligibility === "verified-qualified" && verifiedCount === 0 ? "candidates" : "library"} <span aria-hidden="true">↗</span></button>
-          </div>
-        )}
 
         {source === "local" && health?.paper_count === 0 && !hasSearched && (
           <div className="onboarding-card">
