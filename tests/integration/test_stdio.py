@@ -36,6 +36,10 @@ class StdioTests(unittest.TestCase):
             self.assertTrue(health["ok"], health)
             self.assertTrue(health["data"]["offline"])
             self.assertEqual(health["data"]["paper_count"], 0)
+            self.assertEqual(health["data"]["eligibility_counts"], {
+                "verified-qualified": 0, "verified-not-qualified": 0,
+                "unknown": 0, "exploratory": 0,
+            })
             taxonomy = self.invoke(json.dumps({"version": 1, "id": "t", "command": "taxonomy",
                                               "payload": {}}), path)
             self.assertEqual(taxonomy["data"]["tags"], [])
@@ -73,6 +77,8 @@ class StdioTests(unittest.TestCase):
 
                 refreshed = handle(request("health", {}), session=session)
                 self.assertEqual(refreshed["data"]["paper_count"], 1)
+                self.assertEqual(refreshed["data"]["eligibility_counts"]["unknown"], 1)
+                self.assertEqual(refreshed["data"]["eligibility_counts"]["verified-qualified"], 0)
                 self.assertIsNot(session.prepared, old)
                 result = handle(request("search", {
                     "query": "Cached Search Freshness", "mode": "STRICT",
