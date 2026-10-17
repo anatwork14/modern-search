@@ -229,3 +229,11 @@ Warm persistent search p50 latency < 5 ms and p95 latency < 10 ms across represe
 
 **Hard blockers requiring owner action:** Visual/physical GUI confirmation on real hardware. Programmatic screen capture is blocked without an active WindowServer display recording session. The human owner performs final acceptance via Finder launch. PR #16 remains an independent draft and was not merged.
 
+
+## HOTKEY-DEDICATED — Launcher shortcut collision resolved (2026-10-17)
+
+- **Previous released shortcut:** Option+Space / `Alt+Space` (PR #18), which conflicts with the owner's Codex and Gemini shortcuts.
+- **New Modern Search global shortcut:** **Control + Command + Shift + M** (`⌃⌘⇧M`). Defined in `apps/desktop/src-tauri/src/lib.rs` using Tauri `Modifiers::CONTROL | Modifiers::SUPER | Modifiers::SHIFT` and `Code::KeyM`; no Alt+Space registration remains.
+- **In-app Cmd+K:** unchanged (focus and select search field).
+- **Validation requirement:** Rust unit test asserts exact shortcut and rejects previous Alt+Space; macOS CI build and tests; physical Mac shortcut conflict/registration smoke after pulling and rebuilding app.
+- **Release state:** Code/test completion does not establish that the new shortcut is available on every individual Mac; if occupied by another app, Finder/Dock remains usable.

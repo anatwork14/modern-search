@@ -10,7 +10,7 @@ This is a **search launcher**, not a chatbot. The macOS app opens as a small rou
 - Enter on a selected result opens its source URL or toggles evidence/tags.
 - Copy actions on every card: "Copy citation", "Copy title", "Copy DOI" with instant feedback.
 - Escape dismisses filters -> collapses expanded results -> hides floating window.
-- Option + Space (`Alt+Space`) global shortcut summons or hides the floating launcher from any desktop application.
+- Control + Command + Shift + M (`⌃⌘⇧M`) global shortcut summons or hides the floating launcher from any desktop application.
 - Clicking the macOS Dock icon restores and focuses the search window via native `RunEvent::Reopen`.
 - Native Light and Dark appearance support via `@media (prefers-color-scheme: dark)` adhering to macOS system theme.
 - Fixed window positioning without jarring re-centering jumps on size changes.
@@ -37,7 +37,7 @@ Window management allows smooth expansion without recentering jarringly on each 
 | `Escape` | Active search | Dismiss expanded results, return to launcher |
 | `Escape` | Idle launcher | Hide window (on macOS desktop) |
 | `⌘C` / `Ctrl+C` | Selected result | Copy formatted bibliographic citation to clipboard |
-| `Option + Space` | Global system | Toggle summon / hide Modern Search launcher |
+| `Control + Command + Shift + M` | Global system | Toggle summon / hide Modern Search launcher |
 
 ## Acceptance gates
 
