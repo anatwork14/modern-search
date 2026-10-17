@@ -89,3 +89,9 @@ The Gemini-inspired launcher opens with **Fast** (STRICT lexical) retrieval, a k
 python scripts/benchmark_search.py --db "$HOME/Library/Application Support/ResearchOS/catalog.sqlite3" --suite
 ```
 
+
+### Finding imported papers (2026-10-17)
+
+The imported canonical paper catalog is **unverified** until scholarly qualification review is completed. Previously, the fixed verified-only default made every local query return zero despite 2,478 imported records. Health now reports counts by eligibility state. If there are unknown candidates and zero verified-qualified papers, the desktop visibly opens in **Unverified papers** discovery scope; manually selecting Verified only always strictly honors that filter. No records are reclassified.
+
+Click **Browse library** with an empty query to verify catalog contents without relying on term matches. Multiword **Fast** queries use literal AND matching over indexed title, author, tags and abstract (and the current import may have no abstracts). When no results match, the UI offers a one-keyword search and browsing/filters actions. **Hybrid** is semantic only with an explicitly installed, compatible local embedding index; no index means lexical fallback.
