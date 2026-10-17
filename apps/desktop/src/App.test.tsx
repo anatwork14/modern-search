@@ -88,4 +88,42 @@ describe("ResearchOS quick-search launcher", () => {
     await user.keyboard("{Control>}k{/Control}");
     expect(screen.getByRole("searchbox")).toHaveFocus();
   });
+
+  it("navigates results with arrow keys and dismisses with Escape", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByRole("searchbox"), "attention{Enter}");
+    const firstPaper = await screen.findByText("DEMO-001");
+    const firstCard = firstPaper.closest("article")!;
+    expect(firstCard).toBeInTheDocument();
+
+    // Arrow down selects first result
+    await user.keyboard("{ArrowDown}");
+    expect(firstCard).toHaveAttribute("aria-selected", "true");
+
+    // Arrow down selects second result if present
+    await user.keyboard("{ArrowDown}");
+
+    // Escape collapses results and refocuses search input
+    await user.keyboard("{Escape}");
+    expect(screen.queryByText("DEMO-001")).not.toBeInTheDocument();
+    expect(screen.getByRole("searchbox")).toHaveFocus();
+  });
+
+  it("provides copy buttons for citation and title", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByRole("searchbox"), "attention{Enter}");
+    await screen.findByText("DEMO-001");
+
+    const copyCiteBtn = screen.getAllByRole("button", { name: /copy citation/i })[0];
+    expect(copyCiteBtn).toBeInTheDocument();
+
+    const copyTitleBtn = screen.getAllByRole("button", { name: /copy title/i })[0];
+    expect(copyTitleBtn).toBeInTheDocument();
+
+    await user.click(copyCiteBtn);
+    expect(await screen.findByText("✓ Citation copied")).toBeInTheDocument();
+  });
 });
+

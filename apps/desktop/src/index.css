@@ -1,6 +1,10 @@
-:root { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Inter, sans-serif; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; color: #242529; background: transparent; font-size: 14px; }
+:root { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Inter, sans-serif; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; background: transparent; font-size: 14px; }
 * { box-sizing: border-box; }
 html, body { min-width: 320px; min-height: 100%; margin: 0; background: transparent; }
 button, input, textarea, select { font: inherit; }
-button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #80c6ff; outline-offset: 2px; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid #58a6ff; outline-offset: 2px; }
 ::selection { background: #b9e0ff; color: #15374f; }
+@media (prefers-color-scheme: dark) {
+  ::selection { background: #264f78; color: #f0f6fc; }
+}
+

@@ -270,8 +270,27 @@ async fn taxonomy() -> Result<Value, RpcError> {
     invoke_service_async("taxonomy", Value::Object(Default::default())).await
 }
 
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        if let Some(window) = app.get_webview_window("main") {
+                            if window.is_visible().unwrap_or(false) && window.is_focused().unwrap_or(false) {
+                                let _ = window.hide();
+                            } else {
+                                let _ = window.show();
+                                let _ = window.unminimize();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    }
+                })
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![service_health, search, taxonomy])
         .setup(|app| {
             // A bundled .app (including debug bundles) always searches its own
@@ -289,11 +308,29 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 window.set_title("ResearchOS")?;
             }
+            // Register Option+Space (Alt+Space) global shortcut if feasible.
+            // If unregistered or blocked by OS permissions, fails gracefully.
+            if let Ok(shortcut) = "Alt+Space".parse::<Shortcut>() {
+                let _ = app.global_shortcut().register(shortcut);
+            }
             Ok(())
-        })
-        .run(tauri::generate_context!())
+        });
+
+    let app = builder
+        .build(tauri::generate_context!())
         .expect("error while running ResearchOS desktop");
+
+    app.run(|app_handle, event| {
+        if let tauri::RunEvent::Reopen { .. } = event {
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }
+    });
 }
+
 
 #[cfg(test)]
 mod tests {

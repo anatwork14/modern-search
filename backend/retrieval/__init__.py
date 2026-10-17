@@ -196,6 +196,7 @@ def _build_fts(papers: list[dict], tag_by_id: dict[str, dict]) -> tuple[sqlite3.
     connection = sqlite3.connect(":memory:")
     connection.execute("CREATE VIRTUAL TABLE paper_fts USING fts5(paper_id UNINDEXED, title, abstract, authors, tags)")
     valid: dict[str, dict] = {}
+    batch = []
     for paper in papers:
         if not isinstance(paper, dict) or not isinstance(paper.get("paper_id"), str):
             raise ValueError("Invalid paper dictionary entry")
@@ -217,8 +218,12 @@ def _build_fts(papers: list[dict], tag_by_id: dict[str, dict]) -> tuple[sqlite3.
             " ".join(str(a) for a in paper.get("authors", []) if isinstance(a, str)),
             labels,
         )
-        connection.execute("INSERT INTO paper_fts VALUES (?, ?, ?, ?, ?)", values)
+        batch.append(values)
+    connection.execute("BEGIN TRANSACTION")
+    connection.executemany("INSERT INTO paper_fts VALUES (?, ?, ?, ?, ?)", batch)
+    connection.commit()
     return connection, valid
+
 
 
 def _paper_filter(paper: dict, filters: dict, facets: list[dict]) -> bool:
