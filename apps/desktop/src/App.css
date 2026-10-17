@@ -115,6 +115,12 @@
 .action-icon:hover,.action-icon.is-active { background: var(--action-hover); }
 .action-icon svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
 .scope-copy { color: var(--text-secondary); font-size: 14px; white-space: nowrap; }
+.scope-pill { display: inline-flex; align-items: center; padding: 4px 10px; border: 1px solid var(--btn-action-border); border-radius: 99px; background: var(--btn-action-bg); color: var(--btn-action-text); font-size: 12px; font-weight: 500; cursor: pointer; transition: background-color .15s, border-color .15s; }
+.scope-pill:hover { background: var(--btn-action-hover); }
+.warning-pill { padding: 2px 7px; border-radius: 6px; background: rgba(210, 154, 66, 0.15); color: #d29a42; font-size: 11px; font-weight: 500; }
+.onboarding-card { margin: 14px auto 0; padding: 18px 24px; border: 1px dashed var(--card-border); border-radius: 16px; background: var(--input-bg); color: var(--text-secondary); font-size: 13px; line-height: 1.5; text-align: left; }
+.onboarding-card h3 { margin: 0 0 8px; font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.onboarding-card code { display: block; margin: 8px 0; padding: 8px 12px; border-radius: 8px; background: var(--evidence-box-bg); border: 1px solid var(--evidence-box-border); color: var(--text-primary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; user-select: all; }
 .facet-count { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
 .mode-button { display: flex; align-items: center; gap: 5px; border: 0; border-radius: 20px; padding: 9px 10px; background: transparent; color: var(--text-primary); font-size: 16px; transition: background-color .15s; }
 .mode-button:hover { background: var(--action-hover); }

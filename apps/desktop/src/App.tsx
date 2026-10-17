@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import type { SearchData, SearchMode, SearchRequest, SearchResult } from "./contracts";
+import type { HealthData, SearchData, SearchMode, SearchRequest, SearchResult } from "./contracts";
 import { mockSearch } from "./mock";
 import { getHealth, isDesktopRuntime, searchLocal } from "./service";
 import "./App.css";
@@ -168,7 +168,7 @@ function App() {
     tagReviewState: "" | "verified" | "needs-manual-review";
   }>>([]);
   const [searchData, setSearchData] = useState<SearchData>(emptySearch);
-  const [health, setHealth] = useState<{ paper_count: number; index_version: string } | null>(null);
+  const [health, setHealth] = useState<HealthData | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -212,7 +212,7 @@ function App() {
     getHealth()
       .then((result) => {
         if (active) {
-          setHealth({ paper_count: result.paper_count, index_version: result.index_version });
+          setHealth(result);
         }
       })
       .catch((caught) => {
@@ -310,6 +310,9 @@ function App() {
 
         // ⌘C on selected paper when no text is explicitly selected
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
+          if (document.activeElement === inputRef.current) {
+            return;
+          }
           const selection = window.getSelection();
           if ((!selection || selection.toString().trim() === "") && selectedIndex !== null) {
             const selectedPaper = searchData.results[selectedIndex];
@@ -376,10 +379,12 @@ function App() {
   const statusText = source === "mock"
     ? "Demo mode · fictional sample records"
     : health
-      ? `Local service · ${health.paper_count.toLocaleString()} papers · ${health.index_version}`
+      ? health.paper_count === 0
+        ? "Local library · 0 papers (run import to get started)"
+        : `Local library · ${health.paper_count.toLocaleString()} papers · ${eligibility === "unknown" ? "Candidate search" : "Verified only"} · ${mode === "BROAD" && health.dense_status === "unavailable" ? "Hybrid (lexical fallback)" : health.index_version}`
       : error
-        ? "Local service unavailable"
-      : "Local service · checking connection";
+        ? `Local service unavailable: ${error}`
+        : "Local service · connecting";
 
   return (
     <main className="launcher-shell">
@@ -434,6 +439,22 @@ function App() {
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16" /></svg>
                 </button>
                 <span className="scope-copy">{source === "mock" ? "Fictional demo" : "Local · private"}</span>
+                {source === "local" && (
+                  <button
+                    className="scope-pill"
+                    type="button"
+                    aria-label={`Current library scope: ${eligibility === "unknown" ? "Candidate papers" : "Verified only"}. Click to toggle.`}
+                    title={eligibility === "unknown"
+                      ? "Searching all candidate papers (unverified). Click to switch to verified qualified."
+                      : "Searching only verified qualified papers. Click to switch to candidate papers."}
+                    onClick={() => {
+                      invalidateResults();
+                      setEligibility((cur) => cur === "verified-qualified" ? "unknown" : "verified-qualified");
+                    }}
+                  >
+                    {eligibility === "unknown" ? "Candidate papers" : "Verified only"}
+                  </button>
+                )}
                 {facets.length > 0 && <span className="facet-count">{facets.length} tag {facets.length === 1 ? "filter" : "filters"}</span>}
               </div>
               <div className="action-group">
@@ -465,6 +486,15 @@ function App() {
           <span className="status-dot" aria-hidden="true" />{statusText}
           <span className="shortcut-hint">⌘ K</span>
         </div>
+
+        {source === "local" && health?.paper_count === 0 && !hasSearched && (
+          <div className="onboarding-card">
+            <h3>Welcome to Modern Search</h3>
+            <p>Your local research catalog is currently empty. To get started, import your papers from an Excel taxonomy workbook:</p>
+            <code>python -m backend.data.import_cli /path/to/ai_ml_paper_taxonomy.xlsx</code>
+            <p className="muted">Catalog path: ~/Library/Application Support/ResearchOS/catalog.sqlite3</p>
+          </div>
+        )}
 
         {error && !hasSearched && <div className="error-banner" role="alert">{error}</div>}
 
@@ -549,7 +579,10 @@ function App() {
                 <h2 id="results-title">{busy ? "Searching…" : `${searchData.total} ${searchData.total === 1 ? "result" : "results"}`}</h2>
               </div>
               <div className="result-controls">
-                <span>{eligibility === "verified-qualified" ? "Verified only" : `Eligibility: ${eligibility}`}</span>
+                <span>{eligibility === "verified-qualified" ? "Verified only" : "Candidate papers (unverified)"}</span>
+                {mode === "BROAD" && health?.dense_status === "unavailable" && (
+                  <span className="warning-pill" title="Dense index not available; operating in lexical fallback mode">Lexical fallback</span>
+                )}
                 <button type="button" aria-label="Collapse results" title="Collapse results (Esc)" onClick={() => invalidateResults()}>×</button>
               </div>
             </div>

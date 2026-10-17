@@ -67,17 +67,38 @@ fn python_executable() -> PathBuf {
             return PathBuf::from(configured);
         }
     }
-    // Finder-launched macOS apps often do not inherit the Homebrew PATH.
-    // Prefer explicitly installed host Python before the system fallback.
+
+    // Check user home directory candidates (e.g. uv, ~/.local, or ResearchOS .venv)
+    if let Ok(home) = std::env::var("HOME") {
+        let home_path = PathBuf::from(home);
+        for candidate in [
+            home_path.join(".local/bin/python3.11"),
+            home_path.join(".local/bin/python3"),
+            home_path.join("Library/Application Support/ResearchOS/.venv/bin/python3"),
+            home_path.join("Library/Application Support/ResearchOS/.venv/bin/python"),
+        ] {
+            if candidate.is_file() {
+                return candidate;
+            }
+        }
+    }
+
+    // Finder-launched macOS apps do not inherit user shell profiles or Homebrew PATH.
+    // Explicitly prioritize Python 3.11+ before unversioned or legacy system fallbacks.
     for candidate in [
+        "/opt/homebrew/bin/python3.11",
+        "/opt/homebrew/bin/python3.12",
+        "/opt/homebrew/bin/python3.13",
+        "/opt/homebrew/bin/python3.14",
+        "/usr/local/bin/python3.11",
+        "/usr/local/bin/python3.12",
         "/opt/homebrew/bin/python3",
         "/usr/local/bin/python3",
-        "/opt/homebrew/bin/python3.11",
-        "/usr/local/bin/python3.11",
         "/usr/bin/python3",
     ] {
-        if PathBuf::from(candidate).is_file() {
-            return PathBuf::from(candidate);
+        let path = PathBuf::from(candidate);
+        if path.is_file() {
+            return path;
         }
     }
     PathBuf::from("python3")
@@ -353,8 +374,13 @@ mod tests {
 
     #[test]
     fn stdio_health_taxonomy_and_search_use_real_local_service() {
+        let temp_fallback = std::env::temp_dir().join(format!("researchos-test-{}.sqlite3", std::process::id()));
         let configured_db = std::env::var("RESEARCHOS_DB_PATH")
-            .expect("set RESEARCHOS_DB_PATH to a disposable local test database");
+            .unwrap_or_else(|_| {
+                let s = temp_fallback.to_string_lossy().to_string();
+                unsafe { std::env::set_var("RESEARCHOS_DB_PATH", &s); }
+                s
+            });
         assert!(Path::new(&configured_db).is_absolute());
 
         let health = invoke_service("health", json!({})).expect("health RPC should succeed");

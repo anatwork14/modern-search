@@ -1,0 +1,283 @@
+{
+  "version": "1.0",
+  "description": "Hand-judged evaluation fixture of 30 queries across identities, topics, Vietnamese queries, and negative/filter constraints.",
+  "corpus": "ai_ml_paper_taxonomy_2478",
+  "queries": [
+    {
+      "id": "Q01-ID-DOI-IPO",
+      "category": "identity",
+      "query": "10.18653/v1/2025.acl-long.954",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_target_ids": ["P-012e65bccc24"],
+      "expected_min_count": 1,
+      "expected_top_id": "P-012e65bccc24"
+    },
+    {
+      "id": "Q02-ID-DOI-LAYERSKIP",
+      "category": "identity",
+      "query": "10.18653/v1/2024.acl-long.681",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_target_ids": ["P-02282a2152c4"],
+      "expected_min_count": 1,
+      "expected_top_id": "P-02282a2152c4"
+    },
+    {
+      "id": "Q03-ID-DOI-INJECTION",
+      "category": "identity",
+      "query": "10.18653/v1/2025.acl-long.890",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_target_ids": ["P-1160b04ee79e"],
+      "expected_min_count": 1,
+      "expected_top_id": "P-1160b04ee79e"
+    },
+    {
+      "id": "Q04-ID-ARXIV-ATTENTION",
+      "category": "identity",
+      "query": "1706.03762",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_target_ids": ["P-a1a0262a54cd"],
+      "expected_min_count": 1,
+      "expected_top_id": "P-a1a0262a54cd"
+    },
+    {
+      "id": "Q05-ID-ARXIV-PAGEDATTENTION",
+      "category": "identity",
+      "query": "2309.06180",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_target_ids": ["P-26c336c25455"],
+      "expected_min_count": 1,
+      "expected_top_id": "P-26c336c25455"
+    },
+    {
+      "id": "Q06-ID-ARXIV-DPO",
+      "category": "identity",
+      "query": "2305.18290",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_target_ids": ["P-3bdad22db8b0"],
+      "expected_min_count": 1,
+      "expected_top_id": "P-3bdad22db8b0"
+    },
+    {
+      "id": "Q07-ID-TITLE-VAE",
+      "category": "identity",
+      "query": "Auto-Encoding Variational Bayes",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_target_ids": ["P-03271ba130d4"],
+      "expected_min_count": 1,
+      "expected_top_id": "P-03271ba130d4"
+    },
+    {
+      "id": "Q08-ID-TITLE-RESNET",
+      "category": "identity",
+      "query": "Deep Residual Learning for Image Recognition",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_target_ids": ["P-4627097f8362"],
+      "expected_min_count": 1,
+      "expected_top_id": "P-4627097f8362"
+    },
+    {
+      "id": "Q09-ID-TITLE-GAN",
+      "category": "identity",
+      "query": "Generative Adversarial Networks",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_target_ids": ["P-211a19ee08a0", "P-346c058b588d"],
+      "expected_min_count": 1
+    },
+    {
+      "id": "Q10-ID-TITLE-XGBOOST",
+      "category": "identity",
+      "query": "XGBoost: A Scalable Tree Boosting System",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_target_ids": ["P-45481da114f3"],
+      "expected_min_count": 1,
+      "expected_top_id": "P-45481da114f3"
+    },
+    {
+      "id": "Q11-TOPIC-FEDERATED",
+      "category": "topic",
+      "query": "federated learning",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 5
+    },
+    {
+      "id": "Q12-TOPIC-SPECULATIVE-DECODING",
+      "category": "topic",
+      "query": "speculative decoding",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 1
+    },
+    {
+      "id": "Q13-TOPIC-DPO",
+      "category": "topic",
+      "query": "direct preference optimization",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 1
+    },
+    {
+      "id": "Q14-TOPIC-PAGEDATTENTION",
+      "category": "topic",
+      "query": "pagedattention",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 1
+    },
+    {
+      "id": "Q15-TOPIC-MURAG",
+      "category": "topic",
+      "query": "multimodal retrieval-augmented generator",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 1
+    },
+    {
+      "id": "Q16-TOPIC-PROMPT-INJECTION",
+      "category": "topic",
+      "query": "prompt injection attacks",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 1
+    },
+    {
+      "id": "Q17-TOPIC-MAML",
+      "category": "topic",
+      "query": "model-agnostic meta-learning",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 1
+    },
+    {
+      "id": "Q18-TOPIC-ADVERSARIAL-EXAMPLES",
+      "category": "topic",
+      "query": "adversarial examples",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 2
+    },
+    {
+      "id": "Q19-TOPIC-MULTI-TASK-NLP",
+      "category": "topic",
+      "query": "multi-task learning natural language processing",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 1
+    },
+    {
+      "id": "Q20-TOPIC-MEMORY-AUGMENTED",
+      "category": "topic",
+      "query": "memory augmentation language models",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 1
+    },
+    {
+      "id": "Q21-VI-FEDERATED",
+      "category": "vietnamese",
+      "query": "học máy phân tán federated learning",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 0
+    },
+    {
+      "id": "Q22-VI-ATTENTION-MEMORY",
+      "category": "vietnamese",
+      "query": "tối ưu bộ nhớ attention kv cache",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 0
+    },
+    {
+      "id": "Q23-VI-PREFERENCE-LEARNING",
+      "category": "vietnamese",
+      "query": "học tăng cường preference classifier",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 0
+    },
+    {
+      "id": "Q24-VI-PROMPT-INJECTION",
+      "category": "vietnamese",
+      "query": "tấn công prompt injection",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 0
+    },
+    {
+      "id": "Q25-VI-SPECULATIVE-DECODING",
+      "category": "vietnamese",
+      "query": "suy đoán speculative decoding",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 0
+    },
+    {
+      "id": "Q26-NEG-NONEXISTENT",
+      "category": "negative",
+      "query": "xyznonexistentquery987654321",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 0,
+      "expected_max_count": 0
+    },
+    {
+      "id": "Q27-NEG-IMPOSSIBLE-FILTER",
+      "category": "negative",
+      "query": "attention",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "facets": [
+        {
+          "namespace": "method",
+          "operator": "ALL",
+          "tags": ["method/nonexistent-quantum-tag-xyz"]
+        }
+      ],
+      "expected_error": "Unknown or ambiguous tag"
+    },
+    {
+      "id": "Q28-NEG-EXCLUDED-TAG",
+      "category": "negative",
+      "query": "",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "facets": [
+        {
+          "namespace": "field",
+          "operator": "NOT",
+          "tags": ["field/federated-learning"]
+        }
+      ],
+      "expected_min_count": 10
+    },
+    {
+      "id": "Q29-NEG-STRICT-PHRASE",
+      "category": "negative",
+      "query": "\"completely fictitious exact phrase that does not exist in any paper\"",
+      "mode": "STRICT",
+      "eligibility": "unknown",
+      "expected_min_count": 0,
+      "expected_max_count": 0
+    },
+    {
+      "id": "Q30-NEG-QUALIFIED-CONSTRAINT",
+      "category": "negative",
+      "query": "attention",
+      "mode": "STRICT",
+      "eligibility": "verified-qualified",
+      "expected_min_count": 0,
+      "expected_max_count": 0
+    }
+  ]
+}
