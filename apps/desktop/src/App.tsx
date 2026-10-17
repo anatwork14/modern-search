@@ -193,7 +193,7 @@ function App() {
   const verifiedCount = health?.eligibility_counts?.["verified-qualified"];
   const candidatesDefaulted = source === "local" && eligibilityChoice === null &&
     eligibility === "unknown" && verifiedCount === 0 && candidateCount > 0;
-  const canBrowseCandidates = source === "local" && candidateCount > 0;
+  const canBrowsePapers = source === "local" && (health?.paper_count ?? 0) > 0;
 
   const invalidateResults = useCallback(() => {
     searchRunId.current += 1;
@@ -415,7 +415,19 @@ function App() {
     setHasSearched(true);
     setSelectedIndex(null);
     try {
+      // The first user query may arrive before the asynchronous health call.
+      // Resolve the catalog state in this same request so it cannot race with
+      // the initial candidate-vs-qualified scope selection.
+      let effectiveHealth = health;
+      if (source === "local" && desktop && !effectiveHealth) {
+        effectiveHealth = await getHealth();
+        if (searchRunId.current !== runId) return;
+        setHealth(effectiveHealth);
+      }
       const request = makeRequest(cursor);
+      if (source === "local" && eligibilityChoice === null) {
+        request.hard_filters.eligibility = [defaultEligibilityForCatalog(effectiveHealth, source)];
+      }
       if (queryOverride !== undefined) request.query = queryOverride.trim();
       if (modeOverride) request.mode = modeOverride;
       if (eligibilityOverride) request.hard_filters.eligibility = [eligibilityOverride];
@@ -558,7 +570,7 @@ function App() {
             </span>
             <button type="button" className="browse-button" onClick={() => {
               invalidateResults();
-              const nextScope = eligibility === "verified-qualified" && verifiedCount === 0 ? "unknown" : eligibility;
+              const nextScope = eligibility === "verified-qualified" && verifiedCount === 0 && candidateCount > 0 ? "unknown" : eligibility;
               if (nextScope !== eligibility) setEligibilityChoice(nextScope);
               setQuery("");
               void runSearch(undefined, null, nextScope, "");
@@ -677,15 +689,15 @@ function App() {
                   ? `This catalog contains ${health?.paper_count.toLocaleString() ?? "imported"} papers, but none are verified-qualified. Use candidate discovery to search them.`
                   : "No indexed terms matched the current filters. The library may contain titles but not abstracts; try one keyword or browse all papers."}</p>
                 <div className="empty-actions">
-                  {eligibility === "verified-qualified" && canBrowseCandidates && (
+                  {eligibility === "verified-qualified" && candidateCount > 0 && (
                     <button type="button" onClick={() => {
                       setEligibilityChoice("unknown");
                       void runSearch(undefined, null, "unknown");
                     }}>Search unknown candidates instead</button>
                   )}
-                  {canBrowseCandidates && (
+                  {canBrowsePapers && (
                     <button type="button" onClick={() => {
-                      const nextScope = eligibility === "verified-qualified" && verifiedCount === 0 ? "unknown" : eligibility;
+                      const nextScope = eligibility === "verified-qualified" && verifiedCount === 0 && candidateCount > 0 ? "unknown" : eligibility;
                       if (nextScope !== eligibility) setEligibilityChoice(nextScope);
                       setQuery("");
                       void runSearch(undefined, null, nextScope, "");
