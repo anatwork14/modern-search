@@ -61,6 +61,10 @@ The script runs Python contracts/data/embedding/retrieval/security/stdio tests, 
 
 A debug app can be built with `npm run tauri build -- --debug --bundles app` from `apps/desktop`. The build bundles backend source and migrations, but still needs Python 3.11+ installed on the Mac (and optional local ML dependencies for hybrid dense search). A signed/notarized independent installer is not yet shipped. A self-contained signed/notarized release, PDF extraction, relevance gold-set comparison and advanced research extensions remain unqualified or deferred.
 
+## Current completion milestone
+
+The Fast Search launcher and latency improvements landed in PRs #17 and #18. **A clean, passing code merge does not mean that the personal macOS application is fully accepted for daily use.** The bounded finishing goals, proof requirements, agent handoff and release stop condition are in **[GOAL.md](GOAL.md)**. Agents should execute its FL-00..FL-06 gates before proposing optional ResearchOS expansion features.
+
 ## Project references
 
 - [Agent instructions](AGENTS.md), [parallel setup](START_HERE.md), [integration contracts](docs/contracts/MVP_V1.md)

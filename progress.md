@@ -212,3 +212,20 @@ Warm persistent search p50 latency < 5 ms and p95 latency < 10 ms across represe
 | `TSK-06` | Test verification, macOS app build, documentation & merge | P0 | `TSK-01`..`05` | DONE | `check.sh` passes, `tauri build` bundled 30.02 MiB `.app`, README updated, ready to merge | `README.md`, `progress.md`, `docs/QUICK_SEARCH_UI.md`, `scripts/check.sh` | PR / Merge to `main` |
 
 
+
+## FINISH-V1 — Daily-driver release acceptance (opened 2026-10-17)
+
+**Authoritative acceptance contract:** [GOAL.md](GOAL.md). **Overall:** IN_PROGRESS / not release-accepted. Previous PRs #17 and #18 are DONE as source implementation; their green CI and reported 0.73ms worker metric do NOT prove end-to-end visual, onboarding or relevance acceptance. This ledger begins with TODOs, to be updated by the integrating agent with evidence; do not silently promote.
+
+| Gate | Priority | Status | Evidence required / next action |
+|---|---|---|---|
+| FL-00 Baseline and environment audit | P0 | TODO | Reconcile main/CI, run check.sh, verify real test corpus and device access, distinguish worker vs full UI latency |
+| FL-01 Native real-Mac UX acceptance | P0 | TODO | Finder launch, hotkey, keyboard, multi-monitor, light/dark and screenshots/observed manual smoke |
+| FL-02 First-run/catalog correctness | P0 | TODO | Offline local catalog onboarding, clear unknown/discovery opt-in, zero-state and safe refresh |
+| FL-03 Deterministic relevance/correctness | P0 | TODO | DOI/title/filters invariants, judged 30+ query set, semantic availability truthfulness |
+| FL-04 End-to-end performance/resilience | P0 | TODO | Enter-to-painted-results p50/p95, startup timing, 100 queries, failure/recovery and DB freshness |
+| FL-05 Finder-operable local installation | P0 | TODO | Built .app outside checkout, Python runtime/install strategy, clean-profile smoke and recovery |
+| FL-06 CI, documentation, final owner acceptance | P0 | TODO | PR/main CI, merged artifacts, FINAL_ACCEPTANCE evidence, human/device signoff, verified main SHA |
+
+**Hard blockers requiring owner action:** access to the real imported catalog and a usable physical Mac or delegated Mac tester, if the agent lacks those. Never publish private corpus, local DB or PDFs to public GitHub. Do not mark FINISHED without all applicable P0 tests and physical Mac signoff. PR #16 is an independent draft and is not automatically included.
+

@@ -2,6 +2,12 @@
 
 Read this file, README.md and progress.md **before changing code**. Treat docs/*.md as the specification, not evidence that a feature has been built. The repo started as only README.md and LICENSE; design deliverables do not constitute runtime implementation.
 
+## ACTIVE DIRECTIVE — v1.0 daily-driver completion (2026-10-17)
+
+**Before anything else, read [GOAL.md](GOAL.md).** This is the current bounded implementation mission after merged PRs #17 and #18. Follow the FL-00..FL-06 gates there; `progress.md` is the evidence/status ledger. The broad research-workbench / EX-* specifications are future work, not prerequisites for completing the floating Fast Search v1.0.
+
+The historical "First tasks" and "First-run parallel kickoff" sections below describe the original pre-MVP state. **Do not reset the project to P0-01, rerun old PR kickoff instructions, or assume main is empty.** Check live code and CI. PR #16 is separate and must remain untouched unless expressly authorized.
+
 ## Mission
 
 Deliver a privacy-first macOS paper-research workbench with qualified bibliographic metadata, trustworthy many-to-many taxonomy, hybrid search (EmbeddingGemma 2 + BM25 + strict filters), evidence-grounded results and reusable cross-domain discoveries.
