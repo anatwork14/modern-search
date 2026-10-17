@@ -73,15 +73,36 @@ describe("ResearchOS quick-search launcher", () => {
     expect(screen.getByLabelText("Search mode")).toHaveValue("BROAD");
   });
 
-  it("requires an explicit opt-in before searching unknown paper candidates", async () => {
+  it("requires explicit scope selection even when a fictional demo search has no matches", async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.type(screen.getByRole("searchbox"), "no-fictional-paper-with-this-id{Enter}");
     expect(await screen.findByText("No papers matched these constraints")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Search unknown candidates instead" }));
-    await user.click(screen.getByRole("button", { name: "Filters" }));
+    expect(screen.queryByRole("button", { name: "Search unknown candidates instead" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Review filters" }));
+    expect(screen.getByLabelText("Publication eligibility")).toHaveValue("verified-qualified");
+    await user.selectOptions(screen.getByLabelText("Publication eligibility"), "unknown");
     expect(screen.getByLabelText("Publication eligibility")).toHaveValue("unknown");
     expect(screen.getByLabelText("Search mode")).toHaveValue("STRICT");
+  });
+
+  it("offers concrete keyword refinement for unmatched multiword searches", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByRole("searchbox"), "unmatched attention{Enter}");
+    expect(await screen.findByText("No papers matched these constraints")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "attention" }));
+    expect(await screen.findByText("DEMO-001")).toBeInTheDocument();
+    expect(screen.getByRole("searchbox")).toHaveValue("attention");
+  });
+
+  it("offers an explicit broader matching action on multiword zero results", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByRole("searchbox"), "unmatched attention{Enter}");
+    expect(await screen.findByText("No papers matched these constraints")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Try broader keywords" }));
+    expect(screen.getByRole("button", { name: /search mode: hybrid/i })).toBeInTheDocument();
   });
 
   it("supports keyboard focus and closing advanced options", async () => {

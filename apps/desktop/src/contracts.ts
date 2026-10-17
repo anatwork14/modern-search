@@ -85,6 +85,13 @@ export interface HealthData {
   dense_status: "unavailable" | "ready";
   index_version: string;
   paper_count: number;
+  /** Counts of indexed papers per mutually exclusive eligibility state. */
+  eligibility_counts?: {
+    "verified-qualified": number;
+    "verified-not-qualified": number;
+    unknown: number;
+    exploratory: number;
+  };
 }
 
 export interface TaxonomyTag {

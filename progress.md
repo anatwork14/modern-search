@@ -237,3 +237,9 @@ Warm persistent search p50 latency < 5 ms and p95 latency < 10 ms across represe
 - **In-app Cmd+K:** unchanged (focus and select search field).
 - **Validation requirement:** Rust unit test asserts exact shortcut and rejects previous Alt+Space; macOS CI build and tests; physical Mac shortcut conflict/registration smoke after pulling and rebuilding app.
 - **Release state:** Code/test completion does not establish that the new shortcut is available on every individual Mac; if occupied by another app, Finder/Dock remains usable.
+
+## SEARCH-DISCOVERY-UX — No-results root-cause remediation (2026-10-17)
+
+- **Cause:** canonical imported catalog has 2,478 unreviewed papers and zero verified-qualified ones; old startup filter was hard-coded to qualified-only. Health previously omitted eligibility counts, so browsing a real populated catalog looked broken.
+- **Implementation:** health `eligibility_counts`, visible unverified candidate discovery start when qualified count is exactly zero, strict user-chosen filters, Browse library, keyword recovery, candidate eligibility badges, health reload when switching from demo to local, and focused Python/frontend regression tests.
+- **Next evidence:** CI on exact head plus Finder-launched real-catalog search on the owner's Mac. No local corpus or paper qualification has been changed.

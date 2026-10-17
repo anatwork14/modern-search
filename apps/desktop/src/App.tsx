@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 import { fitLauncherToWorkArea } from "./windowLayout";
+import { defaultEligibilityForCatalog } from "./discoveryScope";
 import type { HealthData, SearchData, SearchMode, SearchRequest, SearchResult } from "./contracts";
 import { mockSearch } from "./mock";
 import { getHealth, isDesktopRuntime, searchLocal } from "./service";
@@ -88,8 +89,12 @@ function PaperCard({
           <p className="eyebrow">{paper.paper_id}</p>
           <h3>{paper.title}</h3>
         </div>
-        <span className={`state-pill ${paper.review_state === "manually-verified" ? "verified" : "candidate"}`}>
-          {paper.review_state.replaceAll("-", " ")}
+        <span className={`state-pill ${paper.eligibility === "verified-qualified" ? "verified" : "candidate"}`}
+              title={`Publication eligibility: ${paper.eligibility}; review state: ${paper.review_state}`}>
+          {paper.eligibility === "verified-qualified" ? "Verified qualified"
+            : paper.eligibility === "unknown" ? "Unverified candidate"
+            : paper.eligibility === "exploratory" ? "Exploratory"
+            : "Not qualified"}
         </span>
       </div>
       <p className="paper-meta">
@@ -117,6 +122,10 @@ function PaperCard({
             ))}
           </div>
         ) : null}
+        <div className="evidence-row">
+          <span className="evidence-label">Review status</span>
+          <span className="muted">{paper.review_state.replaceAll("-", " ")}</span>
+        </div>
         <div className="evidence-row">
           <span className="evidence-label">Matched by</span>
           {paper.match_routes.length ? paper.match_routes.map((route) => (
@@ -159,7 +168,8 @@ function App() {
   const desktop = useMemo(() => isDesktopRuntime(), []);
   const [source, setSource] = useState<"mock" | "local">(desktop ? "local" : "mock");
   const [mode, setMode] = useState<SearchMode>("STRICT");
-  const [eligibility, setEligibility] = useState("verified-qualified");
+  // First-run candidate discovery is visibly labeled; any manual scope choice wins.
+  const [eligibilityChoice, setEligibilityChoice] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [facets, setFacets] = useState<Array<{
     id: string;
@@ -178,6 +188,12 @@ function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRunId = useRef(0);
   const cardRefs = useRef<(HTMLElement | null)[]>([]);
+  const eligibility = eligibilityChoice ?? defaultEligibilityForCatalog(health, source);
+  const candidateCount = health?.eligibility_counts?.unknown ?? 0;
+  const verifiedCount = health?.eligibility_counts?.["verified-qualified"];
+  const candidatesDefaulted = source === "local" && eligibilityChoice === null &&
+    eligibility === "unknown" && verifiedCount === 0 && candidateCount > 0;
+  const canBrowsePapers = source === "local" && (health?.paper_count ?? 0) > 0;
 
   const invalidateResults = useCallback(() => {
     searchRunId.current += 1;
@@ -208,7 +224,7 @@ function App() {
   }), [eligibility, facets, mode, query]);
 
   useEffect(() => {
-    if (!desktop) return;
+    if (!desktop || source !== "local") return;
     let active = true;
     getHealth()
       .then((result) => {
@@ -224,7 +240,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, [desktop]);
+  }, [desktop, source]);
 
   // Keyboard navigation & shortcuts
   useEffect(() => {
@@ -375,7 +391,13 @@ function App() {
     return () => { cancelled = true; };
   }, [desktop, filtersOpen, hasSearched, source, health?.paper_count, error]);
 
-  const runSearch = async (event?: FormEvent, cursor: string | null = null, eligibilityOverride?: string) => {
+  const runSearch = async (
+    event?: FormEvent,
+    cursor: string | null = null,
+    eligibilityOverride?: string,
+    queryOverride?: string,
+    modeOverride?: SearchMode,
+  ) => {
     event?.preventDefault();
     const incompleteFacet = facets.some((facet) =>
       !facet.namespace.trim() || !facet.tagText.split(",").some((tag) => tag.trim()),
@@ -393,7 +415,21 @@ function App() {
     setHasSearched(true);
     setSelectedIndex(null);
     try {
+      // The first user query may arrive before the asynchronous health call.
+      // Resolve the catalog state in this same request so it cannot race with
+      // the initial candidate-vs-qualified scope selection.
+      let effectiveHealth = health;
+      if (source === "local" && desktop && !effectiveHealth) {
+        effectiveHealth = await getHealth();
+        if (searchRunId.current !== runId) return;
+        setHealth(effectiveHealth);
+      }
       const request = makeRequest(cursor);
+      if (source === "local" && eligibilityChoice === null) {
+        request.hard_filters.eligibility = [defaultEligibilityForCatalog(effectiveHealth, source)];
+      }
+      if (queryOverride !== undefined) request.query = queryOverride.trim();
+      if (modeOverride) request.mode = modeOverride;
       if (eligibilityOverride) request.hard_filters.eligibility = [eligibilityOverride];
       const response = source === "mock" ? mockSearch(request) : await searchLocal(request);
       if (searchRunId.current !== runId) return;
@@ -413,8 +449,8 @@ function App() {
     ? "Demo mode · fictional sample records"
     : health
       ? health.paper_count === 0
-        ? "Local library · 0 papers (run import to get started)"
-        : `Local library · ${health.paper_count.toLocaleString()} papers · ${eligibility === "unknown" ? "Candidate search" : "Verified only"} · ${mode === "BROAD" && health.dense_status === "unavailable" ? "Hybrid (lexical fallback)" : health.index_version}`
+        ? "Library empty · import to begin"
+        : `${health.paper_count.toLocaleString()} local papers · ${eligibility === "unknown" ? "Unverified candidates" : eligibility === "verified-qualified" ? "Verified only" : eligibility} · ${mode === "BROAD" && searchData.dense_status === "unavailable" ? "Lexical fallback" : "Offline"}`
       : error
         ? `Local service unavailable: ${error}`
         : "Local service · connecting";
@@ -449,7 +485,7 @@ function App() {
               type="search"
               value={query}
               onChange={(event) => { invalidateResults(); setQuery(event.target.value); }}
-              placeholder="Search your research library"
+              placeholder="Find papers, authors, DOI, or research topics"
               autoComplete="off"
               autoFocus
               onKeyDown={(event) => {
@@ -476,13 +512,13 @@ function App() {
                   <button
                     className="scope-pill"
                     type="button"
-                    aria-label={`Current library scope: ${eligibility === "unknown" ? "Candidate papers" : "Verified only"}. Click to toggle.`}
+                    aria-label={`Current library scope: ${eligibility === "unknown" ? "Unverified papers" : "Verified only"}. Click to toggle.`}
                     title={eligibility === "unknown"
                       ? "Searching all candidate papers (unverified). Click to switch to verified qualified."
                       : "Searching only verified qualified papers. Click to switch to candidate papers."}
                     onClick={() => {
                       invalidateResults();
-                      setEligibility((cur) => cur === "verified-qualified" ? "unknown" : "verified-qualified");
+                      setEligibilityChoice((cur) => (cur ?? defaultEligibilityForCatalog(health, source)) === "verified-qualified" ? "unknown" : "verified-qualified");
                     }}
                   >
                     {eligibility === "unknown" ? "Candidate papers" : "Verified only"}
@@ -495,7 +531,7 @@ function App() {
                   className="mode-button"
                   type="button"
                   aria-label={`Search mode: ${mode === "STRICT" ? "Fast lexical" : "Hybrid"}. Click to switch`}
-                  title={mode === "STRICT" ? "Fast strict lexical search" : "Hybrid lexical and available local semantic candidates"}
+                  title={mode === "STRICT" ? "Fast strict lexical search" : "Flexible keyword matching plus optional local semantic search"}
                   onClick={() => { invalidateResults(); setMode((current) => current === "BROAD" ? "STRICT" : "BROAD"); }}
                 >
                   {mode === "STRICT" ? "Fast" : "Hybrid"}
@@ -520,6 +556,27 @@ function App() {
           <span className="shortcut-hint">⌘ K</span>
         </div>
           </div>
+
+        {source === "local" && !filtersOpen && !hasSearched && candidateCount > 0 && (
+          <div className="discovery-guide" role="note">
+            <span className="discovery-guide-copy">
+              <strong>{candidatesDefaulted ? "Discovery is ready" : eligibility === "unknown" ? "Candidate discovery" : "Verified-only search"}</strong>
+              {" · "}
+              {eligibility === "unknown"
+                ? "Papers are imported, not qualification-verified."
+                : verifiedCount === 0
+                  ? "No papers have been qualification-verified yet."
+                  : "Only verified-qualified papers are included."}
+            </span>
+            <button type="button" className="browse-button" onClick={() => {
+              invalidateResults();
+              const nextScope = eligibility === "verified-qualified" && verifiedCount === 0 && candidateCount > 0 ? "unknown" : eligibility;
+              if (nextScope !== eligibility) setEligibilityChoice(nextScope);
+              setQuery("");
+              void runSearch(undefined, null, nextScope, "");
+            }}>Browse {eligibility === "verified-qualified" && verifiedCount === 0 ? "candidates" : "library"} <span aria-hidden="true">↗</span></button>
+          </div>
+        )}
 
         {source === "local" && health?.paper_count === 0 && !hasSearched && (
           <div className="onboarding-card">
@@ -550,13 +607,13 @@ function App() {
 
               <label className="control-label" htmlFor="search-mode">Search mode</label>
               <select id="search-mode" value={mode} onChange={(event) => { invalidateResults(); setMode(event.target.value as SearchMode); }}>
-                <option value="BROAD">Broad · lexical + semantic candidates</option>
+                <option value="BROAD">Broad · any keywords + local semantic if available</option>
                 <option value="STRICT">Strict · exact terms and filters</option>
               </select>
               <p className="field-hint">Filters stay exact. An empty intersection stays empty.</p>
 
               <label className="control-label" htmlFor="eligibility">Publication eligibility</label>
-              <select id="eligibility" value={eligibility} onChange={(event) => { invalidateResults(); setEligibility(event.target.value); }}>
+              <select id="eligibility" value={eligibility} onChange={(event) => { invalidateResults(); setEligibilityChoice(event.target.value); }}>
                 <option value="verified-qualified">Verified qualified · default</option>
                 <option value="exploratory">Exploratory · opt in</option>
                 <option value="unknown">Unknown · opt in</option>
@@ -613,7 +670,7 @@ function App() {
                 <h2 id="results-title">{busy ? "Searching…" : `${searchData.total} ${searchData.total === 1 ? "result" : "results"}`}</h2>
               </div>
               <div className="result-controls">
-                <span>{eligibility === "verified-qualified" ? "Verified only" : "Candidate papers (unverified)"}</span>
+                <span>{eligibility === "verified-qualified" ? "Verified only" : eligibility === "unknown" ? "Unverified candidates" : eligibility}</span>
                 {mode === "BROAD" && health?.dense_status === "unavailable" && (
                   <span className="warning-pill" title="Dense index not available; operating in lexical fallback mode">Lexical fallback</span>
                 )}
@@ -625,11 +682,46 @@ function App() {
             {hasSearched && !error && searchData.warnings.map((warning) => <p className="warning-note" key={warning}>{warning}</p>)}
             {!busy && !error && searchData.results.length === 0 && !(source === "local" && !desktop) && (
               <div className="empty-state">
-                <h3>No papers matched these constraints</h3>
-                <p>Exact eligibility and tag filters were preserved. {eligibility === "verified-qualified" ? "Your imported papers may still need eligibility review." : "Try a different query or adjust filters."}</p>
-                {eligibility === "verified-qualified"
-                  ? <button type="button" onClick={() => { setEligibility("unknown"); void runSearch(undefined, null, "unknown"); }}>Search unknown candidates instead</button>
-                  : <button type="button" onClick={() => setFiltersOpen(true)}>Review filters</button>}
+                <h3>{eligibility === "verified-qualified" && verifiedCount === 0
+                  ? "No papers have been verified yet"
+                  : "No papers matched these constraints"}</h3>
+                <p>{eligibility === "verified-qualified" && verifiedCount === 0
+                  ? `This catalog contains ${health?.paper_count.toLocaleString() ?? "imported"} papers, but none are verified-qualified. Use candidate discovery to search them.`
+                  : "No indexed terms matched the current filters. The library may contain titles but not abstracts; try one keyword or browse all papers."}</p>
+                <div className="empty-actions">
+                  {eligibility === "verified-qualified" && candidateCount > 0 && (
+                    <button type="button" onClick={() => {
+                      setEligibilityChoice("unknown");
+                      void runSearch(undefined, null, "unknown");
+                    }}>Search unknown candidates instead</button>
+                  )}
+                  {canBrowsePapers && (
+                    <button type="button" onClick={() => {
+                      const nextScope = eligibility === "verified-qualified" && verifiedCount === 0 && candidateCount > 0 ? "unknown" : eligibility;
+                      if (nextScope !== eligibility) setEligibilityChoice(nextScope);
+                      setQuery("");
+                      void runSearch(undefined, null, nextScope, "");
+                    }}>Browse {eligibility === "verified-qualified" && verifiedCount === 0 ? "candidate papers" : "all in this scope"}</button>
+                  )}
+                  {mode === "STRICT" && query.trim().split(/\s+/).length > 1 && (
+                    <button type="button" onClick={() => {
+                      setMode("BROAD");
+                      void runSearch(undefined, null, undefined, undefined, "BROAD");
+                    }}>Try broader keywords</button>
+                  )}
+                  <button type="button" onClick={() => setFiltersOpen(true)}>Review filters</button>
+                </div>
+                {query.trim().split(/\s+/).length > 1 && (
+                  <div className="keyword-suggestions">
+                    <span>Or try a single keyword:</span>
+                    {query.trim().split(/\s+/).filter((term) => /^[\p{L}\p{N}-]{3,}$/u.test(term)).slice(0, 3).map((term) => (
+                      <button key={term} type="button" onClick={() => {
+                        setQuery(term);
+                        void runSearch(undefined, null, undefined, term);
+                      }}>{term}</button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             <div className="paper-list" aria-live="polite" aria-busy={busy}>

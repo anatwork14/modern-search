@@ -115,8 +115,23 @@ def handle(request: object, session: SessionCache | None = None) -> dict:
         else:
             papers, tags, prepared = session.snapshot(path)
         if command == "health":
+            # Show how many papers are actually searchable under each hard
+            # eligibility filter. Catalog imports usually start as unverified
+            # candidates; reporting only total count makes an empty default
+            # verified-only search look like a broken index.
+            eligibility_counts = {
+                "verified-qualified": 0,
+                "verified-not-qualified": 0,
+                "unknown": 0,
+                "exploratory": 0,
+            }
+            for paper in papers:
+                state = paper.get("eligibility", "unknown")
+                if state in eligibility_counts:
+                    eligibility_counts[state] += 1
             data = {"status": "ready", "offline": True, "dense_status": "unavailable",
-                    "index_version": "sqlite-v1", "paper_count": len(papers)}
+                    "index_version": "sqlite-v1", "paper_count": len(papers),
+                    "eligibility_counts": eligibility_counts}
         elif command == "taxonomy":
             data = {"tags": tags}
         else:

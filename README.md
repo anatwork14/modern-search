@@ -2,7 +2,7 @@
 
 A local macOS research catalog with a Tauri 2 desktop interface, SQLite provenance, offline lexical search, strict taxonomy filters, and optional EmbeddingGemma 2 hybrid retrieval.
 
-**Development MVP, 2026-10-15.** The canonical source was imported locally: 1,616 tags, 2,478 papers and 3,197 paper/tag assertions. These are discovery candidates: every imported paper remains `unknown` eligibility, and no PDF has been verified locally. The default qualified-only search therefore returns zero until a separate review establishes qualification. Select unknown/exploratory explicitly to browse the imported candidates. See [progress.md](progress.md) for executed gates and remaining work.
+**Development MVP, 2026-10-15.** The canonical source was imported locally: 1,616 tags, 2,478 papers and 3,197 paper/tag assertions. These are discovery candidates: every imported paper remains `unknown` eligibility, and no PDF has been verified locally. The native launcher clearly starts in unverified-candidate discovery mode when that is the only populated eligibility group; the user can explicitly switch to Verified only, which remains a strict filter even when it yields no records. See [progress.md](progress.md) for executed gates and remaining work.
 
 ## Run on macOS
 
@@ -74,7 +74,7 @@ The Fast Search launcher and latency improvements landed in PRs #17 and #18. **A
 
 ### Fast floating desktop search
 
-The Gemini-inspired launcher opens with **Fast** (STRICT lexical) retrieval, a keyboard-first floating input, and progressive filters/results. Switch to **Hybrid** (BROAD) to include available local semantic candidates. Unreviewed imported papers are not silently included: choose **unknown** eligibility explicitly in Filters or use the clearly labeled opt-in on zero results.
+The Gemini-inspired launcher opens with **Fast** (STRICT lexical) retrieval, a keyboard-first floating input, and progressive filters/results. Switch to **Hybrid** (BROAD) to include available local semantic candidates. Unreviewed imported papers are clearly labeled **Unverified papers** when the local catalog has candidates but no verified entries; choose **Verified only** to restrict search to qualified records. Unknown candidates are never presented as verified.
 
 - **Control + Command + Shift + M (`⌃⌘⇧M`)**: summon or hide launcher globally from any macOS application.
 - `⌘K`: focus search input and select query text.
@@ -89,3 +89,11 @@ The Gemini-inspired launcher opens with **Fast** (STRICT lexical) retrieval, a k
 python scripts/benchmark_search.py --db "$HOME/Library/Application Support/ResearchOS/catalog.sqlite3" --suite
 ```
 
+
+### Finding imported papers (2026-10-17)
+
+The imported canonical paper catalog is **unverified** until scholarly qualification review is completed. Previously, the fixed verified-only default made every local query return zero despite 2,478 imported records. Health now reports counts by eligibility state. If there are unknown candidates and zero verified-qualified papers, the desktop visibly opens in **Unverified papers** discovery scope; manually selecting Verified only always strictly honors that filter. No records are reclassified.
+
+Click **Browse library** with an empty query to verify catalog contents without relying on term matches. Multiword **Fast** queries use literal AND matching over indexed title, author, tags and abstract (and the current import may have no abstracts). When no results match, the UI offers a one-keyword search and browsing/filters actions. **Hybrid** is semantic only with an explicitly installed, compatible local embedding index; no index means lexical fallback.
+
+**Broader keyword search:** Fast (STRICT) requires all unquoted query terms, while explicitly selected Hybrid/BROAD allows any keyword in lexical title/author/tag/abstract matching (exact quoted phrases and all hard filters stay required), then fuses the available local dense results. With no dense index, BROAD still improves recall for multiword questions over title-only imports; the interface labels the lexical fallback.

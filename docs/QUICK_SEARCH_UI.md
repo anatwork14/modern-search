@@ -70,3 +70,11 @@ The original screenshot showed three disconnected surfaces: a large search pill,
 The Tauri window is 780 × 270 logical pixels when compact. Results/filters expand up to 680 logical pixels **bounded by the active monitor work area** (excluding menu bar/Dock), and the window moves up before growing if needed. Filters and results scroll *inside* the rounded card; action/footer controls stay visible. Switching Search ↔ Filters, Enter, Esc, Cmd+K, copy actions and hard eligibility filtering remain functional.
 
 **Acceptance is not just CI:** on the owner's Mac, verify the compact and expanded states while the Dock is visible, external monitor placement, small screens, light/dark modes, keyboard-only interactions and pointer interactions. Record screenshots from a real WindowServer session. Automated UI tests prove DOM containment but cannot confirm native macOS geometry.
+
+## Real paper discovery UX (2026-10-17)
+
+Backend health now returns exact per-eligibility counts so an imported-but-unreviewed catalog does not appear broken. If zero records are verified-qualified and unknown imported candidates exist, the initial client scope is clearly **Unverified papers** (the owner may switch back to Verified only at any time). This is a visible scope choice; requests still send exactly one eligibility filter without automatically widening a submitted query. Result badges distinguish scholarly **eligibility** from separate review state.
+
+Idle local search provides **Browse library** (empty-query search). A no-match screen provides an explicit candidate-scope switch when appropriate, browse in the selected scope, filter review and single-keyword links; users must choose any widening. A no-index Hybrid mode must disclose lexical-only fallback rather than imply semantic recall.
+
+For multiword zero-results, **Try broader keywords** explicitly switches to BROAD, which relaxes lexical query term conjunction to an OR group but retains any exact quoted phrase constraints, DOI/arXiv lookup and all hard filters. This is not an automatic filter relaxation; source eligibility and tag rules remain exact. Missing dense embeddings are reported as lexical fallback.
