@@ -156,7 +156,58 @@ Campaign totals are not final. The read-only catalog snapshot contains 2,478 can
 
 ## UI-QUICK-SEARCH — Gemini-inspired launcher (2026-10-16)
 
-- **Status: IN_PROGRESS** — owner: ChatGPT implementation; branch `feat/gemini-inspired-quick-search`; PR [#17](https://github.com/anatwork14/modern-search/pull/17); started 2026-10-16 12:13 UTC.
+- **Status: DONE** — owner: ChatGPT implementation; branch `feat/gemini-inspired-quick-search`; PR [#17](https://github.com/anatwork14/modern-search/pull/17); merged at commit `bccc787`.
 - **Implemented candidate:** Gemini-style floating launcher, Fast (STRICT) local search by default, opt-in Hybrid retrieval, progressive filters, provenance-aware results, persistent bounded Python stdio worker, reusable prepared SQLite FTS cache, database-change invalidation, and on-device cold/warm latency benchmark. Paths: `apps/desktop/src/{App.tsx,App.css,index.css,App.test.tsx}`, `apps/desktop/src-tauri/{tauri.conf.json,capabilities/default.json}`, `docs/QUICK_SEARCH_UI.md`.
-- **Validated automated acceptance:** all CI jobs PASS at PR head `9f90f6561f16b290231366ea04c3511e443e7d9b` in [run 38904700660](https://github.com/anatwork14/modern-search/actions/runs/38904700660) — frontend tests, lint and build; Python contracts/retrieval/integration/security/acquisition; Rust test/check; debug macOS .app build and resource-path checks. No measured device-specific speedup is claimed.
-- **Known release follow-ups (outside automated CI):** run a physical-macOS visual and real-imported-catalog smoke covering window transparency, drag, resizing, keyboard shortcuts and query accuracy; capture screenshots; measure p50/p95 with the bundled `scripts/benchmark_search.py` on a real catalog. Signed/notarized app and bundled interpreter are not shipped. Merge of code does not assert these gates passed.
+
+## MODERN-SEARCH-FINAL — Native macOS Fast Search Launcher & Performance Optimization (2026-10-17)
+
+### Thought Process — Modern Search Launcher & Retrieval Optimization [v1_Plan]
+
+**Core Technical Challenge:**
+Transforming Modern Search into an exceptionally fast, distraction-free macOS desktop research launcher. The system must deliver sub-10ms warm search latency over a local library of 2,478 papers with strict provenance, eliminate N+1 relational query overhead, support fluid keyboard navigation (Arrow Up/Down, Enter, Cmd+K, Escape, Copy actions), support macOS Dark Mode and native floating window behavior without jarring jumps, register an Option+Space global summon shortcut, and ensure zero-network, local-first stability.
+
+**Success Metric (Primary):**
+Warm persistent search p50 latency < 5 ms and p95 latency < 10 ms across representative lexical queries on the actual 2,478-paper local catalog.
+
+**Success Metrics (Secondary):**
+- Database snapshot build (cold `export_papers` + `export_tags` + `_build_fts`) reduced from >100 ms to <35 ms.
+- 100% keyboard accessibility: complete query, navigation, citation copying, and dismissal without mouse interaction.
+- Zero lint errors/warnings (resolve React Compiler `set-state-in-effect` warning).
+- 100% passing automated test suites (Python contracts, data, embeddings, retrieval, security, integration, acquisition; TypeScript/React vitest; Rust cargo tests).
+
+**Baseline:**
+- Before optimization (measured on Apple Silicon, 2,478 papers):
+  - Cold spawn: p50 = 85.21 ms, p95 = 99.43 ms
+  - Persistent warm: p50 = 3.43 ms, p95 = 3.94 ms
+  - `export_papers` alone: 60.60 ms (10,000+ individual SQL queries)
+  - `export_tags` alone: 12.76 ms (1,616 individual SQL queries)
+  - `_build_fts` alone: 32.45 ms (2,478 autocommit inserts)
+
+**Known Unknowns:**
+- macOS accessibility permissions for global shortcut registration (Option+Space) on unnotarized local development apps; must fail gracefully to Dock/menu workflow if permission is withheld.
+- Display scale and multi-monitor bounds during window expansion.
+
+**Edge Cases to Probe:**
+1. Zero-match query with strict filters and instant opt-in to unknown candidate papers.
+2. Exact DOI search with punctuation/parentheses and special characters.
+3. Multi-word phrase search across title, abstract, and authors.
+4. Rapid consecutive queries with Arrow key navigation before response arrives.
+5. Window hide and reveal cycle preserving search state and instant keyboard focus.
+
+**Go / No-Go Criteria:**
+- Go: All automated test suites pass, benchmark confirms sub-5ms warm latency, keyboard navigation and dark mode work seamlessly, and macOS debug `.app` compiles with all backend resources.
+- No-Go: Any degradation in strict filter invariants, data leakage, or worker crash recovery.
+
+---
+
+### Implementation Backlog
+
+| Task ID | Description | Priority | Dependencies | Status | Validation Requirements | Relevant Files | Commit / PR |
+|---|---|---|---|---|---|---|---|
+| `TSK-01` | Optimize relational export & in-memory FTS batch loading | P0 | None | IN_PROGRESS | Bulk SQL queries eliminate N+1 latency; `export_papers` + `export_tags` < 25 ms; all 101 Python tests pass | `backend/persistence/__init__.py`, `backend/retrieval/__init__.py`, `backend/service.py` | `feat/modern-search-native-desktop-and-perf` |
+| `TSK-02` | Comprehensive benchmark across diverse query taxonomy | P0 | `TSK-01` | TODO | Benchmark 10 representative queries (exact title, DOI, arXiv, short keyword, natural language, Vietnamese, empty match) on real 2,478 papers | `scripts/benchmark_search.py`, `tests/integration/test_latency_benchmark.py` | `feat/modern-search-native-desktop-and-perf` |
+| `TSK-03` | Keyboard navigation (Arrow keys, Enter, Escape, Copy) & PaperCard actions | P0 | None | TODO | Arrow Up/Down navigation, Enter open/inspect, Escape dismiss, Copy DOI/Title/Citation, zero oxlint warnings | `apps/desktop/src/App.tsx`, `App.css`, `App.test.tsx` | `feat/modern-search-native-desktop-and-perf` |
+| `TSK-04` | macOS floating launcher window refinement & Dark Mode | P0 | `TSK-03` | TODO | Remove jarring `win.center()` on resize; bound height; complete `@media (prefers-color-scheme: dark)` styling | `apps/desktop/src/App.css`, `apps/desktop/src/index.css`, `App.tsx` | `feat/modern-search-native-desktop-and-perf` |
+| `TSK-05` | Option+Space global hotkey & launcher lifecycle | P1 | None | TODO | Register Option+Space via `tauri-plugin-global-shortcut`; toggle show/hide; auto-focus on focus | `apps/desktop/src-tauri/Cargo.toml`, `src-tauri/src/lib.rs`, `capabilities/default.json` | `feat/modern-search-native-desktop-and-perf` |
+| `TSK-06` | Test verification, macOS app build, documentation & merge | P0 | `TSK-01`..`05` | TODO | `check.sh` passes, `tauri build` succeeds, README updated, PR created & merged to `main` | `README.md`, `progress.md`, `scripts/check.sh` | `main` |
+

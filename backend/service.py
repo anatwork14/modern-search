@@ -136,11 +136,12 @@ def handle(request: object, session: SessionCache | None = None) -> dict:
                     warnings.append("No local dense index is installed; lexical search remains available")
             data = search(papers, tags, payload, dense=dense, prepared=prepared)
             data["warnings"].extend(warnings)
-            by_id = {paper["paper_id"]: paper for paper in papers}
+            lookup = prepared.by_id if prepared is not None else {paper["paper_id"]: paper for paper in papers}
             for result in data["results"]:
-                paper = by_id[result["paper_id"]]
-                result["venue"] = paper.get("venue")
-                result["venue_evidence"] = paper.get("venue_evidence", [])
+                paper = lookup.get(result["paper_id"])
+                if paper:
+                    result["venue"] = paper.get("venue")
+                    result["venue_evidence"] = paper.get("venue_evidence", [])
         return {**envelope, "ok": True, "data": data}
     except (ValueError, TypeError, KeyError) as error:
         return {**envelope, "ok": False, "error": {"code": "INVALID_REQUEST", "message": str(error)}}
