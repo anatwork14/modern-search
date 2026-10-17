@@ -39,7 +39,7 @@ describe("ResearchOS quick-search launcher", () => {
   it("keeps the browser demo separate from local library results", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Search options" }));
+    await user.click(screen.getByRole("button", { name: "Filters" }));
     await user.click(screen.getByRole("radio", { name: /local library/i }));
     await user.click(screen.getByRole("button", { name: "Done" }));
     await user.type(screen.getByRole("searchbox"), "attention{Enter}");
@@ -52,7 +52,7 @@ describe("ResearchOS quick-search launcher", () => {
     render(<App />);
     await user.type(screen.getByRole("searchbox"), "attention{Enter}");
     expect(await screen.findByText("DEMO-001")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Search options" }));
+    await user.click(screen.getByRole("button", { name: "Filters" }));
     expect(screen.queryByText("DEMO-001")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /add tag facet/i }));
     expect(screen.queryByText("DEMO-001")).not.toBeInTheDocument();

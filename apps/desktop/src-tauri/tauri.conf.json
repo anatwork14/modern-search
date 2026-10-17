@@ -13,10 +13,10 @@
     "windows": [
       {
         "title": "ResearchOS",
-        "width": 780,
-        "height": 270,
+        "width": 760,
+        "height": 165,
         "minWidth": 560,
-        "minHeight": 260,
+        "minHeight": 160,
         "center": true,
         "resizable": true,
         "fullscreen": false,

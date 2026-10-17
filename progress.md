@@ -243,3 +243,21 @@ Warm persistent search p50 latency < 5 ms and p95 latency < 10 ms across represe
 - **Cause:** canonical imported catalog has 2,478 unreviewed papers and zero verified-qualified ones; old startup filter was hard-coded to qualified-only. Health previously omitted eligibility counts, so browsing a real populated catalog looked broken.
 - **Implementation:** health `eligibility_counts`, visible unverified candidate discovery start when qualified count is exactly zero, strict user-chosen filters, Browse library, keyword recovery, candidate eligibility badges, health reload when switching from demo to local, and focused Python/frontend regression tests.
 - **Next evidence:** CI on exact head plus Finder-launched real-catalog search on the owner's Mac. No local corpus or paper qualification has been changed.
+
+## UI-UX-STREAMLINED-FINALIZATION — Single-toolbar launcher & live macOS verification (2026-10-17)
+
+- **Owner Problem Addressed:** Problem A (oversized interface, awkward spacing, disconnected search/filters/status rows, screen overflow) & Problem B (inability to find papers in 2,478 catalog).
+- **Architecture & UI Refinement:**
+  1. Consolidated 3 stacked rows (action buttons with ambiguous `+`, segmented `[Search | Filters]` tabs, discovery guide banner) into a **single integrated action bar**.
+  2. Replaced segmented tabs with a clean, dedicated `Filters` disclosure button (`aria-label="Filters"`) displaying the sliders icon and active filter count badge.
+  3. Action bar items:
+     - Left: `Filters` disclosure toggle, `[ (•) 2,478 Candidates ]` scope pill (click toggles scope), and `Browse all` quick button.
+     - Right: `⌘K` keyboard hint, `[ Fast ▾ ]` mode dropdown, and primary circular blue `Search` button.
+  4. Reduced idle window height by 40% from 270px to **165px** (`760 × 165` logical pixels).
+  5. Expanded height dynamically bounded to 620px (fitted within active macOS work area above the Dock).
+- **Verification & Evidence:**
+  - Automated test suite: 18 security tests PASS, 9 integration tests (including 100-burst resilience p50=0.046ms) PASS, 17 frontend Vitest tests PASS, Oxlint 0 warnings/0 errors, Vite build succeeded in 84ms, Rust unit tests 3/3 PASS.
+  - Native macOS `.app` bundle built (`ResearchOS.app`, 30.03 MiB) and installed to `/Applications/ResearchOS.app`.
+  - Process verified running on live WindowServer with active Python 3.11 backend child worker (`/Applications/ResearchOS.app/Contents/MacOS/researchos-desktop`).
+  - Live 2940x1912 Retina screenshots verified: idle compact launcher (165px), query search (`attention`, 102 results), library browse (`Browse all`, 2,478 results), and Escape dismissal collapse back to 165px bar.
+
