@@ -70,4 +70,18 @@ A debug app can be built with `npm run tauri build -- --debug --bundles app` fro
 
 ### Fast floating desktop search
 
-The Gemini-inspired launcher opens with **Fast** (STRICT lexical) retrieval, a keyboard-first floating input, and progressive filters/results. Switch to **Hybrid** (BROAD) to include available local semantic candidates. Unreviewed imported papers are not silently included: choose **unknown** eligibility explicitly in Filters or use the clearly labeled opt-in on zero results. Press `⌘K` to focus search within the app; Enter submits. [UX and native packaging details](docs/QUICK_SEARCH_UI.md). Benchmark your own catalog with `python scripts/benchmark_search.py --db "$HOME/Library/Application Support/ResearchOS/catalog.sqlite3"`.
+The Gemini-inspired launcher opens with **Fast** (STRICT lexical) retrieval, a keyboard-first floating input, and progressive filters/results. Switch to **Hybrid** (BROAD) to include available local semantic candidates. Unreviewed imported papers are not silently included: choose **unknown** eligibility explicitly in Filters or use the clearly labeled opt-in on zero results.
+
+- **Option + Space (`Alt+Space`)**: summon or hide launcher globally from any macOS application.
+- `⌘K`: focus search input and select query text.
+- `Arrow Down / Up`: navigate search results with smooth keyboard selection.
+- `Enter`: execute query, or open selected paper's source.
+- `Escape`: dismiss options, collapse results, or hide launcher.
+- Direct card actions: "Copy citation", "Copy title", "Copy DOI" with instant feedback.
+- Full Light and Dark appearance support matching macOS system theme.
+- [UX and native packaging details](docs/QUICK_SEARCH_UI.md). Benchmark your catalog across all 10 query categories:
+
+```sh
+python scripts/benchmark_search.py --db "$HOME/Library/Application Support/ResearchOS/catalog.sqlite3" --suite
+```
+
