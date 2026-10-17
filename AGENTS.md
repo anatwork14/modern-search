@@ -69,9 +69,9 @@ Implemented code + unit tests + integration/e2e coverage as applicable + documen
 - Preserve the current external data inventory as *observed externally*, separate from app milestones.
 - Prefer one agent making status updates after a successful merge to avoid conflicts.
 
-## First tasks
+## Historical first tasks (superseded by GOAL.md)
 
-Start at P0-01 in progress.md: inspect/reconcile the Drive workbook/archive and create a tested import contract. In parallel, a separate agent may scaffold Tauri UI only after shared interfaces are agreed. Never start by claiming all catalog PDFs are locally available.
+The original project began with P0-01 Drive inventory/import work and a Tauri UI scaffold. That pre-MVP sequence is historical, **not the current starting point**. New agents must start at FL-00 in GOAL.md, audit current code/CI and work through the v1 finish-line gates. Never assume that all catalog PDFs are locally available.
 
 ## Expansion policy (2026-10-15 design update)
 
@@ -81,6 +81,6 @@ Do not build a general-purpose second brain or an army of agents before validati
 
 Status protocol: record EX-* work only under the extension backlog in progress.md. Keep external scholarly evidence, agent-inferred hypotheses, planned features and reproduced results separate.
 
-## First-run parallel kickoff
+## Historical parallel kickoff reference (optional; not a mandatory restart)
 
-For multi-agent implementation, **read [START_HERE.md](START_HERE.md)** and follow its five isolated worktree/worker contracts, interface freeze, CI and integration rules. The kickoff document describes how to spawn workers; it does **not** imply any workers are already running. Lead agent owns progress.md updates, not parallel workers. Always check branch and PR #1 status before creating a worktree; main may still have only README and LICENSE.
+For multi-agent implementation, **read [START_HERE.md](START_HERE.md)** and follow its five isolated worktree/worker contracts, interface freeze, CI and integration rules. The kickoff document describes how to spawn workers; it does **not** imply any workers are already running. Lead agent owns progress.md updates, not parallel workers. Always check current main and open PRs before creating a worktree; the original PR #1 and empty-repository remarks are no longer relevant to current execution.
