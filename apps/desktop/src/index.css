@@ -1,6 +1,6 @@
 :root { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Inter, sans-serif; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; background: transparent; font-size: 14px; }
 * { box-sizing: border-box; }
-html, body { min-width: 320px; min-height: 100%; margin: 0; background: transparent; }
+html, body { min-width: 320px; width: 100%; height: 100%; overflow: hidden; margin: 0; background: transparent; }
 button, input, textarea, select { font: inherit; }
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid #58a6ff; outline-offset: 2px; }
 ::selection { background: #b9e0ff; color: #15374f; }
