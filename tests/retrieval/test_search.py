@@ -81,7 +81,7 @@ class SearchTests(unittest.TestCase):
         strict = self.run_query({"query": "attention intrusion", "mode": "STRICT"})
         self.assertEqual(self.ids(strict), [])
         broad = self.run_query({"query": "attention intrusion", "mode": "BROAD"})
-        self.assertEqual(set(self.ids(broad)), {"P1", "P2"})
+        self.assertEqual(set(self.ids(broad)), {"P1", "P2", "P3"})  # P3 matches IoT intrusion tag
         self.assertEqual(broad["dense_status"], "unavailable")
         self.assertNotIn("P4", self.ids(broad))  # unknown remains excluded
 
