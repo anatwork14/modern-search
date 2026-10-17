@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { LogicalSize } from "@tauri-apps/api/dpi";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
+import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
+import { fitLauncherToWorkArea } from "./windowLayout";
 import type { HealthData, SearchData, SearchMode, SearchRequest, SearchResult } from "./contracts";
 import { mockSearch } from "./mock";
 import { getHealth, isDesktopRuntime, searchLocal } from "./service";
@@ -328,19 +329,51 @@ function App() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [desktop, filtersOpen, hasSearched, invalidateResults, searchData.results, selectedIndex]);
 
-  // Adjust native window height smoothly without jarring recentering
+  // Use the CURRENT monitor's work area, not a fixed 800px height. Keep the
+  // entire window above the Dock/menu bar and scroll content inside the card.
   useEffect(() => {
     if (!desktop) return;
     const win = getCurrentWindow();
-    const targetHeight = filtersOpen ? 750 : hasSearched ? 800 : 354;
+    let cancelled = false;
+    const expanded = filtersOpen || hasSearched || (source === "local" && health?.paper_count === 0) || Boolean(error);
     void (async () => {
       try {
-        await win.setSize(new LogicalSize(900, targetHeight));
+        const monitor = await currentMonitor();
+        if (cancelled) return;
+        if (!monitor) {
+          await win.setSize(new LogicalSize(780, expanded ? 580 : 270));
+          return;
+        }
+        const area = monitor.workArea ?? { position: monitor.position, size: monitor.size };
+        const scale = monitor.scaleFactor;
+        const previous = await win.outerPosition();
+        if (cancelled) return;
+        const frame = fitLauncherToWorkArea(
+          { x: area.position.x / scale, y: area.position.y / scale,
+            width: area.size.width / scale, height: area.size.height / scale },
+          { x: previous.x / scale, y: previous.y / scale },
+          expanded,
+        );
+        const oldSize = await win.outerSize();
+        if (cancelled) return;
+        const newPosition = new LogicalPosition(frame.x, frame.y);
+        const newSize = new LogicalSize(frame.width, frame.height);
+        // Move upward before growing to avoid a flash behind the Dock.
+        if (frame.height > oldSize.height / scale) {
+          await win.setPosition(newPosition);
+          if (cancelled) return;
+          await win.setSize(newSize);
+        } else {
+          await win.setSize(newSize);
+          if (cancelled) return;
+          await win.setPosition(newPosition);
+        }
       } catch {
-        // Layout remains functional when host window controls are restricted.
+        // The CSS container still clips/scrolls if the OS disallows resizing.
       }
     })();
-  }, [desktop, filtersOpen, hasSearched]);
+    return () => { cancelled = true; };
+  }, [desktop, filtersOpen, hasSearched, source, health?.paper_count, error]);
 
   const runSearch = async (event?: FormEvent, cursor: string | null = null, eligibilityOverride?: string) => {
     event?.preventDefault();
@@ -476,22 +509,23 @@ function App() {
               </div>
             </div>
           </form>
-        </section>
-
+          <div className="launcher-utility-row">
         <nav className="launcher-tabs" aria-label="Quick search view">
           <button className={!filtersOpen ? "active" : ""} type="button" aria-pressed={!filtersOpen} onClick={() => { setFiltersOpen(false); inputRef.current?.focus(); }}>Search</button>
           <button className={filtersOpen ? "active" : ""} type="button" aria-pressed={filtersOpen} onClick={() => setFiltersOpen(true)}>Filters</button>
         </nav>
         <div className={`connection ${source === "mock" ? "demo-connection" : ""}`} role="status">
-          <span className="status-dot" aria-hidden="true" />{statusText}
+          <span className="status-dot" aria-hidden="true" />
+          <span className="connection-copy">{statusText}</span>
           <span className="shortcut-hint">⌘ K</span>
         </div>
+          </div>
 
         {source === "local" && health?.paper_count === 0 && !hasSearched && (
           <div className="onboarding-card">
             <h3>Welcome to Modern Search</h3>
             <p>Your local research catalog is currently empty. To get started, import your papers from an Excel taxonomy workbook:</p>
-            <code>python -m backend.data.import_cli /path/to/ai_ml_paper_taxonomy.xlsx</code>
+            <code>python -m backend.cli /absolute/path/to/catalog.xlsx --source-id local:catalog</code>
             <p className="muted">Catalog path: ~/Library/Application Support/ResearchOS/catalog.sqlite3</p>
           </div>
         )}
@@ -613,6 +647,7 @@ function App() {
             <footer className="results-footer">{source === "mock" ? "These are fictional UI fixtures, not scholarly evidence." : `Index: ${searchData.index_version} · Dense: ${searchData.dense_status} · Search remains local`}</footer>
           </section>
         )}
+        </section>
       </div>
     </main>
   );

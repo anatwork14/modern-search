@@ -10,9 +10,13 @@ describe("ResearchOS quick-search launcher", () => {
     render(<App />);
     expect(screen.getByRole("region", { name: /researchos quick search/i })).toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: /research question or exact method/i })).toBeInTheDocument();
-    expect(within(screen.getByRole("region", { name: /researchos quick search/i })).getByRole("button", { name: "Search" })).toBeInTheDocument();
+    const searchForm = screen.getByRole("searchbox").closest("form");
+    expect(within(searchForm!).getByRole("button", { name: "Search" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /search mode: fast lexical/i })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Demo mode · fictional sample records");
+    const card = screen.getByRole("region", { name: /researchos quick search/i });
+    expect(card).toContainElement(screen.getByRole("navigation", { name: /quick search view/i }));
+    expect(card).toContainElement(screen.getByRole("status"));
     expect(screen.queryByRole("heading", { name: "Your results" })).not.toBeInTheDocument();
     expect(screen.queryByText("DEMO-001")).not.toBeInTheDocument();
   });
@@ -63,6 +67,8 @@ describe("ResearchOS quick-search launcher", () => {
     await user.click(screen.getByRole("button", { name: /search mode: fast lexical/i }));
     expect(screen.getByRole("button", { name: /search mode: hybrid/i })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Filters" }));
+    expect(screen.getByRole("region", { name: /researchos quick search/i }))
+      .toContainElement(screen.getByRole("region", { name: /search options/i }));
     expect(screen.getByLabelText("Publication eligibility")).toHaveValue("verified-qualified");
     expect(screen.getByLabelText("Search mode")).toHaveValue("BROAD");
   });
@@ -94,6 +100,8 @@ describe("ResearchOS quick-search launcher", () => {
     render(<App />);
     await user.type(screen.getByRole("searchbox"), "attention{Enter}");
     const firstPaper = await screen.findByText("DEMO-001");
+    expect(screen.getByRole("region", { name: /researchos quick search/i }))
+      .toContainElement(screen.getByRole("region", { name: /on-device paper search|results/i }));
     const firstCard = firstPaper.closest("article")!;
     expect(firstCard).toBeInTheDocument();
 

@@ -62,3 +62,11 @@ Window management allows smooth expansion without recentering jarringly on each 
 | Repeated | attention | STRICT | 69.67 ms | 3.28 ms | 3.34 ms |
 | **Overall** | *Representative Taxonomy* | — | **70.56 ms** | **0.73 ms** | **5.99 ms** |
 
+
+## Screen-safe integrated layout (2026-10-17)
+
+The original screenshot showed three disconnected surfaces: a large search pill, separate floating tabs/status, and a filter panel clipped behind the Dock. The updated desktop uses **one unified rounded card** containing search input, compact tabs/status, and a flex-scrolling results or filter area. All content must remain inside the card, not transparent window space.
+
+The Tauri window is 780 × 270 logical pixels when compact. Results/filters expand up to 680 logical pixels **bounded by the active monitor work area** (excluding menu bar/Dock), and the window moves up before growing if needed. Filters and results scroll *inside* the rounded card; action/footer controls stay visible. Switching Search ↔ Filters, Enter, Esc, Cmd+K, copy actions and hard eligibility filtering remain functional.
+
+**Acceptance is not just CI:** on the owner's Mac, verify the compact and expanded states while the Dock is visible, external monitor placement, small screens, light/dark modes, keyboard-only interactions and pointer interactions. Record screenshots from a real WindowServer session. Automated UI tests prove DOM containment but cannot confirm native macOS geometry.
