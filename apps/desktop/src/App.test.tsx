@@ -10,7 +10,8 @@ describe("ResearchOS quick-search launcher", () => {
     render(<App />);
     expect(screen.getByRole("region", { name: /researchos quick search/i })).toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: /research question or exact method/i })).toBeInTheDocument();
-    expect(within(screen.getByRole("region", { name: /researchos quick search/i })).getByRole("button", { name: "Search" })).toBeInTheDocument();
+    const searchForm = screen.getByRole("searchbox").closest("form");
+    expect(within(searchForm!).getByRole("button", { name: "Search" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /search mode: fast lexical/i })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Demo mode · fictional sample records");
     const card = screen.getByRole("region", { name: /researchos quick search/i });
