@@ -76,7 +76,7 @@ The Fast Search launcher and latency improvements landed in PRs #17 and #18. **A
 
 The Gemini-inspired launcher opens with **Fast** (STRICT lexical) retrieval, a keyboard-first floating input, and progressive filters/results. Switch to **Hybrid** (BROAD) to include available local semantic candidates. Unreviewed imported papers are not silently included: choose **unknown** eligibility explicitly in Filters or use the clearly labeled opt-in on zero results.
 
-- **Option + Space (`Alt+Space`)**: summon or hide launcher globally from any macOS application.
+- **Control + Command + Shift + M (`⌃⌘⇧M`)**: summon or hide launcher globally from any macOS application.
 - `⌘K`: focus search input and select query text.
 - `Arrow Down / Up`: navigate search results with smooth keyboard selection.
 - `Enter`: execute query, or open selected paper's source.

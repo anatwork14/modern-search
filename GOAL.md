@@ -42,7 +42,7 @@ The app must **not** pretend that source-reported bibliographic data, Q1/Q2 qual
 ### FL-01 — Working daily-use window on macOS (P0)
 
 - Test actual **built .app launched from Finder**, not just Vite browser and Tauri dev.
-- Verify window transparency/rounded clipping/shadow, initial focus, drag target, hide/show, Dock reopen, Option+Space conflict/graceful fallback, Escape, Cmd+K, keyboard-only search and result actions.
+- Verify window transparency/rounded clipping/shadow, initial focus, drag target, hide/show, Dock reopen, Control+Command+Shift+M conflict/graceful fallback, Escape, Cmd+K, keyboard-only search and result actions.
 - Exercise light/dark, Retina scaling, at least one smaller Mac display and multi-monitor/window-bounds behavior where devices are available.
 - Preserve active search state sensibly; don't spawn redundant Python processes or leave zombie workers after quit.
 - Fix bugs with regression tests and capture real screenshot or video evidence. CI success alone is **not** visual acceptance.

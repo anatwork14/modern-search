@@ -291,7 +291,16 @@ async fn taxonomy() -> Result<Value, RpcError> {
     invoke_service_async("taxonomy", Value::Object(Default::default())).await
 }
 
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+
+/// Dedicated Modern Search hotkey on macOS: Control + Command + Shift + M.
+/// Avoid Option+Space, which is already used by other launchers.
+fn launcher_shortcut() -> Shortcut {
+    Shortcut::new(
+        Some(Modifiers::CONTROL | Modifiers::SUPER | Modifiers::SHIFT),
+        Code::KeyM,
+    )
+}
 
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -329,11 +338,9 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 window.set_title("ResearchOS")?;
             }
-            // Register Option+Space (Alt+Space) global shortcut if feasible.
-            // If unregistered or blocked by OS permissions, fails gracefully.
-            if let Ok(shortcut) = "Alt+Space".parse::<Shortcut>() {
-                let _ = app.global_shortcut().register(shortcut);
-            }
+            // Register the dedicated Control+Command+Shift+M launcher hotkey.
+            // A shortcut conflict must not prevent Finder/Dock launch.
+            let _ = app.global_shortcut().register(launcher_shortcut());
             Ok(())
         });
 
@@ -359,6 +366,20 @@ mod tests {
     use serde_json::json;
     use std::path::Path;
 
+
+    #[test]
+    fn launcher_uses_dedicated_chord_not_alt_space() {
+        use super::{launcher_shortcut, Code, Modifiers, Shortcut};
+        let expected = Shortcut::new(
+            Some(Modifiers::CONTROL | Modifiers::SUPER | Modifiers::SHIFT),
+            Code::KeyM,
+        );
+        assert_eq!(launcher_shortcut(), expected);
+        assert_ne!(
+            launcher_shortcut(),
+            Shortcut::new(Some(Modifiers::ALT), Code::Space)
+        );
+    }
 
     #[test]
     fn bounded_frames_reject_oversize_and_partial_responses() {

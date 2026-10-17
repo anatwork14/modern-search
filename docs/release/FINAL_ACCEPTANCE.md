@@ -25,7 +25,7 @@
 | Gate | Requirement | Status | Verification Evidence |
 |---|---|---|---|
 | **FL-00** | Baseline & environment audit | **DONE** | Clean checkout on `main`; `./scripts/check.sh` 100% PASS; catalog verified with 2,478 papers, 1,616 tags; worker RPC p50 0.73 ms vs UI end-to-end ~35-50 ms recorded. Programmatic headless screencapture confirmed blocked without WindowServer console session. |
-| **FL-01** | Native daily-use macOS launcher | **DONE** | Tested `.app` launched via Finder; hardened Python 3.11+ executable resolution in `src-tauri/src/lib.rs`; Option+Space global hotkey and Dock reopen focus; safe `Cmd+C` clipboard behavior; Escape hierarchical dismissal. |
+| **FL-01** | Native daily-use macOS launcher | **DONE** | Tested `.app` launched via Finder; hardened Python 3.11+ executable resolution in `src-tauri/src/lib.rs`; Control+Command+Shift+M global hotkey and Dock reopen focus; safe `Cmd+C` clipboard behavior; Escape hierarchical dismissal. |
 | **FL-02** | Real catalog onboarding & coverage | **DONE** | Explicit scope toggle between "Candidate papers (2,478)" and "Verified qualified (0)" directly on launcher surface; onboarding card for empty catalogs; explicit lexical fallback disclaimer when dense index is absent; zero-widening strict filter invariants maintained. |
 | **FL-03** | Search correctness & 30-query relevance | **DONE** | 30 hand-judged queries fixture (`tests/fixtures/relevance_30_queries.json`) covering 10 identities, 10 domain topics, 5 Vietnamese queries, 5 negative/filter cases. Automated suite `tests/retrieval/test_relevance_evaluation.py` achieves **100% identity resolution (MRR@10 = 1.0)**. |
 | **FL-04** | Speed & resilience under stress | **DONE** | `tests/integration/test_resilience.py` executes 100 back-to-back rapid searches (p50 < 2 ms), tests request-response correlation, verifies automatic external DB update invalidation, and guards offline boundaries. |
@@ -58,7 +58,7 @@ open apps/desktop/src-tauri/target/debug/bundle/macos/ResearchOS.app
 ```
 
 ### 4.2 Keyboard Navigation
-- **`Option + Space`**: Toggle show/hide of the floating search window from anywhere.
+- **`Control + Command + Shift + M`**: Toggle show/hide of the floating search window from anywhere.
 - **`Cmd + K`**: Focus search bar and select existing text.
 - **`ArrowDown` / `ArrowUp`**: Navigate search results.
 - **`Enter`**: Open paper source link (or expand details if no URL).
@@ -87,6 +87,6 @@ As specified in `GOAL.md` FL-06, because this automated agent operates in a head
 
 To complete the release to **FINISHED**, the repository owner performs a one-time physical Mac launch test:
 1. Double-click `ResearchOS.app` from Finder.
-2. Press `Option + Space` to reveal the launcher.
+2. Press `Control + Command + Shift + M` to reveal the launcher.
 3. Type a query (e.g. `attention` or `1706.03762`) and verify results appear smoothly.
 4. Press `Escape` to dismiss.
