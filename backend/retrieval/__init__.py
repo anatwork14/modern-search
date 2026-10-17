@@ -186,10 +186,15 @@ def _query_parts(query: str) -> tuple[str | None, str | None, list[str], list[st
     return doi, arxiv, [p for p in phrases if p], terms
 
 
-def _fts_match(phrases: list[str], terms: list[str]) -> str:
-    pieces = [f'"{phrase.replace(chr(34), chr(34)*2)}"' for phrase in phrases]
-    pieces.extend(f'"{term.replace(chr(34), chr(34)*2)}"' for term in terms)
-    return " AND ".join(pieces)
+def _fts_match(phrases: list[str], terms: list[str], *, any_terms: bool = False) -> str:
+    # Strict/Fast requires all requested terms. Explicit BROAD mode may
+    # recover partial title matches from a sparse catalog with no abstracts;
+    # phrases stay exact and all eligibility/tag filters stay hard.
+    phrase_parts = [f'"{phrase.replace(chr(34), chr(34)*2)}"' for phrase in phrases]
+    term_parts = [f'"{term.replace(chr(34), chr(34)*2)}"' for term in terms]
+    if any_terms and len(term_parts) > 1:
+        return " AND ".join([*phrase_parts, "(" + " OR ".join(term_parts) + ")"])
+    return " AND ".join([*phrase_parts, *term_parts])
 
 
 def _build_fts(papers: list[dict], tag_by_id: dict[str, dict]) -> tuple[sqlite3.Connection, dict[str, dict]]:
@@ -361,7 +366,7 @@ def search(papers: Iterable[dict], tags: Iterable[dict], request: dict, dense: A
         query_hash = _request_fingerprint(request)
         offset = _decode_cursor(cursor, query_hash, index_hash)
         doi, arxiv, phrases, terms = _query_parts(query)
-        fts = _fts_match(phrases, terms)
+        fts = _fts_match(phrases, terms, any_terms=mode == "BROAD" and not (doi or arxiv))
         lexical: dict[str, float] = {}
         if fts:
             # BM25 returns lower values for better matches. The SQL contains no caller syntax.

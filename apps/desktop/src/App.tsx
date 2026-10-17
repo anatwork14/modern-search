@@ -396,6 +396,7 @@ function App() {
     cursor: string | null = null,
     eligibilityOverride?: string,
     queryOverride?: string,
+    modeOverride?: SearchMode,
   ) => {
     event?.preventDefault();
     const incompleteFacet = facets.some((facet) =>
@@ -416,6 +417,7 @@ function App() {
     try {
       const request = makeRequest(cursor);
       if (queryOverride !== undefined) request.query = queryOverride.trim();
+      if (modeOverride) request.mode = modeOverride;
       if (eligibilityOverride) request.hard_filters.eligibility = [eligibilityOverride];
       const response = source === "mock" ? mockSearch(request) : await searchLocal(request);
       if (searchRunId.current !== runId) return;
@@ -517,7 +519,7 @@ function App() {
                   className="mode-button"
                   type="button"
                   aria-label={`Search mode: ${mode === "STRICT" ? "Fast lexical" : "Hybrid"}. Click to switch`}
-                  title={mode === "STRICT" ? "Fast strict lexical search" : "Hybrid lexical and available local semantic candidates"}
+                  title={mode === "STRICT" ? "Fast strict lexical search" : "Flexible keyword matching plus optional local semantic search"}
                   onClick={() => { invalidateResults(); setMode((current) => current === "BROAD" ? "STRICT" : "BROAD"); }}
                 >
                   {mode === "STRICT" ? "Fast" : "Hybrid"}
@@ -593,7 +595,7 @@ function App() {
 
               <label className="control-label" htmlFor="search-mode">Search mode</label>
               <select id="search-mode" value={mode} onChange={(event) => { invalidateResults(); setMode(event.target.value as SearchMode); }}>
-                <option value="BROAD">Broad · lexical + semantic candidates</option>
+                <option value="BROAD">Broad · any keywords + local semantic if available</option>
                 <option value="STRICT">Strict · exact terms and filters</option>
               </select>
               <p className="field-hint">Filters stay exact. An empty intersection stays empty.</p>
@@ -688,6 +690,12 @@ function App() {
                       setQuery("");
                       void runSearch(undefined, null, nextScope, "");
                     }}>Browse {eligibility === "verified-qualified" && verifiedCount === 0 ? "candidate papers" : "all in this scope"}</button>
+                  )}
+                  {mode === "STRICT" && query.trim().split(/\s+/).length > 1 && (
+                    <button type="button" onClick={() => {
+                      setMode("BROAD");
+                      void runSearch(undefined, null, undefined, undefined, "BROAD");
+                    }}>Try broader keywords</button>
                   )}
                   <button type="button" onClick={() => setFiltersOpen(true)}>Review filters</button>
                 </div>

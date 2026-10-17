@@ -96,6 +96,15 @@ describe("ResearchOS quick-search launcher", () => {
     expect(screen.getByRole("searchbox")).toHaveValue("attention");
   });
 
+  it("offers an explicit broader matching action on multiword zero results", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByRole("searchbox"), "unmatched attention{Enter}");
+    expect(await screen.findByText("No papers matched these constraints")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Try broader keywords" }));
+    expect(screen.getByRole("button", { name: /search mode: hybrid/i })).toBeInTheDocument();
+  });
+
   it("supports keyboard focus and closing advanced options", async () => {
     const user = userEvent.setup();
     render(<App />);

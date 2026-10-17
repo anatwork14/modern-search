@@ -75,6 +75,24 @@ class SearchTests(unittest.TestCase):
         result = self.run_query({"query": '"federated learning"'})
         self.assertEqual(self.ids(result), ["P1", "P2"])
 
+    def test_broad_lexical_recovers_partial_title_matches_without_dense_index(self):
+        # The canonical import may contain titles, not abstracts: an AND-only
+        # query can miss everything. Broadly matching any term is user-selected.
+        strict = self.run_query({"query": "attention intrusion", "mode": "STRICT"})
+        self.assertEqual(self.ids(strict), [])
+        broad = self.run_query({"query": "attention intrusion", "mode": "BROAD"})
+        self.assertEqual(set(self.ids(broad)), {"P1", "P2"})
+        self.assertEqual(broad["dense_status"], "unavailable")
+        self.assertNotIn("P4", self.ids(broad))  # unknown remains excluded
+
+    def test_broad_keeps_quoted_phrases_and_hard_facets(self):
+        result = self.run_query({"query": '"federated learning" attention intrusion',
+                                 "mode": "BROAD",
+                                 "hard_filters": {"facets": [
+                                     {"namespace": "task", "operator": "ALL", "tags": ["task/iot-ids"]}
+                                 ]}})
+        self.assertEqual(self.ids(result), ["P2"])
+
     def test_empty_query_browses_qualified_only_and_has_deterministic_order(self):
         result = self.run_query({"query": ""})
         self.assertEqual(self.ids(result), ["P1", "P2", "P3"])
